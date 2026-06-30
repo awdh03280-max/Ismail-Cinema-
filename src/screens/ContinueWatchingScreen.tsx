@@ -1,67 +1,238 @@
-import React, { useFocusEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Text, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
+import React, { useEffect, useState, useFocusEffect } from 'react';
+import { View, StyleSheet, FlatList, StatusBar, Text, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
-import { getContinueWatching } from '../storage/storage';
-import { ContinueWatchingMovie } from '../storage/storage';
-import ContinueWatchingCard from '../components/ContinueWatchingCard';
+import Slider from '@react-native-community/slider';
+import MovieCard from '../components/MovieCard';
+import EmptyState from '../components/EmptyState';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { getContinueWatching, removeContinueWatching, updateWatchProgress } from '../storage/storage';
+
+interface WatchingMovie {
+  imdbID: string;
+  title: string;
+  poster: string;
+  progress: number;
+  watchedAt: number;
+}
 
 const { width } = Dimensions.get('window');
 
 const ContinueWatchingScreen = ({ navigation }: any) => {
-  const { t } = useTranslation();
-  const [movies, setMovies] = useState<ContinueWatchingMovie[]>([]);
+  const [movies, setMovies] = useState<WatchingMovie[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedMovie, setSelectedMovie] = useState<WatchingMovie | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  React.useEffect(() => {
+    StatusBar.setBarStyle('light-content');
+    StatusBar.setBackgroundColor('#0a0e27');
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       loadContinueWatching();
-      StatusBar.setBarStyle('light-content');
-      StatusBar.setBackgroundColor('#0a0e27');
     }, [])
   );
 
   const loadContinueWatching = async () => {
     try {
-      const data = await getContinueWatching();
-      const sorted = data.sort((a, b) => b.watchedAt - a.watchedAt);
+      setLoading(true);
+      const watching = await getContinueWatching();
+      // Sort by most recently watched
+      const sorted = watching.sort((a, b) => b.watchedAt - a.watchedAt);
       setMovies(sorted);
     } catch (error) {
       console.error('Error loading continue watching:', error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleRemoveMovie = async (movieId: string) => {
+    try {
+      await removeContinueWatching(movieId);
+      setMovies(prev => prev.filter(m => m.imdbID !== movieId));
+    } catch (error) {
+      console.error('Error removing movie:', error);
+    }
+  };
+
+  const handleMoviePress = (movieId: string) => {
+    navigation.navigate('MovieDetails', { movieId });
+  };
+
+  const handleOpenProgressModal = (movie: WatchingMovie) => {
+    setSelectedMovie(movie);
+    setProgress(movie.progress);
+  };
+
+  const handleSaveProgress = async () => {
+    if (!selectedMovie) return;
+    try {
+      await updateWatchProgress(selectedMovie.imdbID, progress);
+      setMovies(prev =>
+        prev.map(m =>
+          m.imdbID === selectedMovie.imdbID ? { ...m, progress } : m
+        )
+      );
+      setSelectedMovie(null);
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0a0e27', '#1a1a2e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Continue Watching</Text>
+      </View>
       {movies.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="play-circle-outline" size={80} color="#666" />
-          <Text style={styles.emptyTitle}>{t('no_continue_watching')}</Text>
-          <Text style={styles.emptySubtitle}>Start watching your favorite movies</Text>
-          <TouchableOpacity style={styles.browseButton} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.browseButtonText}>Explore Movies</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="play-circle"
+          title="Nothing to Watch Yet"
+          message="Start watching movies to see them here"
+        />
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {movies.map((movie) => (
-            <ContinueWatchingCard key={movie.imdbID} movie={movie} onPress={() => navigation.navigate('MovieDetails', { movieId: movie.imdbID })} />
-          ))}
-        </ScrollView>
+        <FlatList
+          data={movies}
+          keyExtractor={item => item.imdbID}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => (
+            <View style={styles.movieContainer}>
+              <View style={styles.cardWrapper}>
+                <TouchableOpacity
+                  style={styles.movieCard}
+                  onPress={() => handleMoviePress(item.imdbID)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <MovieCard
+                      movie={{
+                        Title: item.title,
+                        Poster: item.poster,
+                        imdbID: item.imdbID,
+                        imdbRating: 'N/A',
+                      }}
+                      onPress={() => handleMoviePress(item.imdbID)}
+                    />
+                  </View>
+                </TouchableOpacity>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progress, { width: `${item.progress}%` }]} />
+                </View>
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.progressButton}
+                    onPress={() => handleOpenProgressModal(item)}
+                  >
+                    <Ionicons name="timer" size={16} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => handleRemoveMovie(item.imdbID)}
+                  >
+                    <Ionicons name="trash" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+        />
       )}
+      <Modal visible={!!selectedMovie} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{selectedMovie?.title}</Text>
+            <Text style={styles.progressLabel}>{Math.round(progress)}% watched</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={100}
+              value={progress}
+              onValueChange={setProgress}
+              minimumTrackTintColor="#e50914"
+              maximumTrackTintColor="#333"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setSelectedMovie(null)}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveProgress}
+              >
+                <Text style={styles.buttonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0e27' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#fff', marginTop: 16 },
-  emptySubtitle: { fontSize: 14, color: '#999', marginTop: 8, textAlign: 'center' },
-  browseButton: { backgroundColor: '#e50914', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginTop: 20 },
-  browseButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  scrollContent: { padding: 12, paddingBottom: 80 },
+  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: '#fff' },
+  columnWrapper: { justifyContent: 'space-around', paddingHorizontal: 8, marginBottom: 8 },
+  listContent: { paddingTop: 12, paddingBottom: 20 },
+  movieContainer: { width: '48%' },
+  cardWrapper: { position: 'relative' },
+  movieCard: { flex: 1 },
+  progressBar: {
+    height: 3,
+    backgroundColor: '#333',
+    borderRadius: 1.5,
+    marginVertical: 8,
+    overflow: 'hidden',
+  },
+  progress: { height: '100%', backgroundColor: '#e50914' },
+  actionButtons: { flexDirection: 'row', gap: 8 },
+  progressButton: {
+    flex: 1,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: 'rgba(229, 9, 20, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeButton: {
+    flex: 1,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: 'rgba(100, 100, 100, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 20,
+    width: width - 40,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 12 },
+  progressLabel: { fontSize: 14, color: '#e50914', marginBottom: 16 },
+  slider: { width: '100%', height: 40 },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  cancelButton: { backgroundColor: '#333' },
+  saveButton: { backgroundColor: '#e50914' },
+  buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });
 
 export default ContinueWatchingScreen;

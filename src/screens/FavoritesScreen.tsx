@@ -1,64 +1,110 @@
-import React, { useFocusEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Text, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
+import React, { useEffect, useState, useFocusEffect } from 'react';
+import { View, StyleSheet, FlatList, StatusBar, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
-import { getFavorites } from '../storage/storage';
-import { FavoriteMovie } from '../storage/storage';
-import MovieCardSmall from '../components/MovieCardSmall';
+import MovieCard from '../components/MovieCard';
+import EmptyState from '../components/EmptyState';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { getFavorites, removeFavorites } from '../storage/storage';
 
-const { width } = Dimensions.get('window');
+interface FavoriteMovie {
+  imdbID: string;
+  title: string;
+  poster: string;
+  addedAt: number;
+}
 
 const FavoritesScreen = ({ navigation }: any) => {
-  const { t } = useTranslation();
   const [favorites, setFavorites] = useState<FavoriteMovie[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    StatusBar.setBarStyle('light-content');
+    StatusBar.setBackgroundColor('#0a0e27');
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       loadFavorites();
-      StatusBar.setBarStyle('light-content');
-      StatusBar.setBackgroundColor('#0a0e27');
     }, [])
   );
 
   const loadFavorites = async () => {
     try {
-      const data = await getFavorites();
-      setFavorites(data);
+      setLoading(true);
+      const favs = await getFavorites();
+      setFavorites(favs);
     } catch (error) {
       console.error('Error loading favorites:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadFavorites();
-    setRefreshing(false);
+  const handleRemoveFavorite = async (movieId: string) => {
+    try {
+      await removeFavorites(movieId);
+      setFavorites(prev => prev.filter(m => m.imdbID !== movieId));
+    } catch (error) {
+      console.error('Error removing favorite:', error);
+    }
   };
+
+  const handleMoviePress = (movieId: string) => {
+    navigation.navigate('MovieDetails', { movieId });
+  };
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0a0e27', '#1a1a2e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Favorites</Text>
+      </View>
       {favorites.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={80} color="#666" />
-          <Text style={styles.emptyTitle}>{t('no_favorites')}</Text>
-          <Text style={styles.emptySubtitle}>{t('start_adding')}</Text>
-          <TouchableOpacity style={styles.browseButton} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.browseButtonText}>Browse Movies</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="heart-outline"
+          title="No Favorites Yet"
+          message="Add movies to your favorites to see them here"
+        />
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshing={refreshing} onRefresh={handleRefresh}>
-          <View style={styles.gridContainer}>
-            {favorites.map((movie) => (
-              <TouchableOpacity key={movie.imdbID} style={styles.gridItem} onPress={() => navigation.navigate('MovieDetails', { movieId: movie.imdbID })}>
-                <MovieCardSmall movie={movie} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+        <FlatList
+          data={favorites}
+          keyExtractor={item => item.imdbID}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => (
+            <View style={styles.movieContainer}>
+              <View style={styles.cardWrapper}>
+                <TouchableOpacity
+                  style={styles.movieCard}
+                  onPress={() => handleMoviePress(item.imdbID)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <MovieCard
+                      movie={{
+                        Title: item.title,
+                        Poster: item.poster,
+                        imdbID: item.imdbID,
+                        imdbRating: 'N/A',
+                      }}
+                      onPress={() => handleMoviePress(item.imdbID)}
+                      isFavorite={true}
+                    />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => handleRemoveFavorite(item.imdbID)}
+                >
+                  <Ionicons name="trash" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
       )}
     </View>
   );
@@ -66,14 +112,24 @@ const FavoritesScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0e27' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#fff', marginTop: 16 },
-  emptySubtitle: { fontSize: 14, color: '#999', marginTop: 8, textAlign: 'center' },
-  browseButton: { backgroundColor: '#e50914', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginTop: 20 },
-  browseButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  scrollContent: { padding: 12, paddingBottom: 80 },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  gridItem: { width: '48%', marginBottom: 12 },
+  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: '#fff' },
+  columnWrapper: { justifyContent: 'space-around', paddingHorizontal: 8, marginBottom: 8 },
+  listContent: { paddingTop: 12, paddingBottom: 20 },
+  movieContainer: { width: '48%' },
+  cardWrapper: { position: 'relative' },
+  movieCard: { flex: 1 },
+  removeButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(229, 9, 20, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default FavoritesScreen;
