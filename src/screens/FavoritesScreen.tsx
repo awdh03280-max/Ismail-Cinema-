@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useFocusEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, StatusBar, Text, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import MovieCard from '../components/MovieCard';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getFavorites, removeFavorites } from '../storage/storage';
+import { getFavorites, removeFromFavorites } from '../storage/storage';
 
 interface FavoriteMovie {
   imdbID: string;
@@ -18,13 +19,13 @@ const FavoritesScreen = ({ navigation }: any) => {
   const [favorites, setFavorites] = useState<FavoriteMovie[]>([]);
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
+  useEffect(() => {
     StatusBar.setBarStyle('light-content');
     StatusBar.setBackgroundColor('#0a0e27');
   }, []);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       loadFavorites();
     }, [])
   );
@@ -43,7 +44,7 @@ const FavoritesScreen = ({ navigation }: any) => {
 
   const handleRemoveFavorite = async (movieId: string) => {
     try {
-      await removeFavorites(movieId);
+      await removeFromFavorites(movieId);
       setFavorites(prev => prev.filter(m => m.imdbID !== movieId));
     } catch (error) {
       console.error('Error removing favorite:', error);
@@ -58,7 +59,12 @@ const FavoritesScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0a0e27', '#1a1a2e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient 
+        colors={['#0a0e27', '#1a1a2e']} 
+        start={{ x: 0, y: 0 }} 
+        end={{ x: 1, y: 1 }} 
+        style={StyleSheet.absoluteFill} 
+      />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Favorites</Text>
       </View>
@@ -89,6 +95,15 @@ const FavoritesScreen = ({ navigation }: any) => {
                         Poster: item.poster,
                         imdbID: item.imdbID,
                         imdbRating: 'N/A',
+                        Year: '',
+                        Plot: '',
+                        Runtime: '',
+                        Genre: '',
+                        Director: '',
+                        Cast: '',
+                        Type: 'movie',
+                        Released: '',
+                        Language: ''
                       }}
                       onPress={() => handleMoviePress(item.imdbID)}
                       isFavorite={true}
