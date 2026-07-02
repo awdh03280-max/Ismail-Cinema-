@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import MovieDetailsScreen from '../screens/MovieDetailsScreen';
 import SplashScreen from '../screens/SplashScreen';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const HomeStack = () => (
@@ -91,7 +91,7 @@ const BottomTabNavigator = () => {
 };
 
 const RootNavigator = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: true }}>
+  <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0a0e27' } }}>
     <Stack.Screen name="Splash" component={SplashScreen} />
     <Stack.Screen name="MainApp" component={BottomTabNavigator} />
   </Stack.Navigator>
