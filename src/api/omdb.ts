@@ -1,13 +1,11 @@
 import axios from 'axios';
 
-const OMDB_API_KEY = 'k_3v6c8x9w';
-const OMDB_BASE_URL = 'https://www.omdbapi.com';
+const API_KEY = 'd23add33a918be4eec47fa9ebe6fb003';
+const BASE_URL = 'https://api.themoviedb.org/3';
+const IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
 
-const omdbClient = axios.create({
-  baseURL: OMDB_BASE_URL,
-  params: {
-    apikey: OMDB_API_KEY,
-  },
+const api = axios.create({
+  baseURL: BASE_URL,
 });
 
 export interface Movie {
@@ -26,68 +24,79 @@ export interface Movie {
   Language: string;
 }
 
-export interface MovieSearchResponse {
-  Search: Movie[];
-  totalResults: string;
-  Response: string;
+function mapMovie(movie: any): Movie {
+  return {
+    imdbID: movie.id.toString(),
+    Title: movie.title || movie.name || '',
+    Year: movie.release_date
+      ? movie.release_date.substring(0, 4)
+      : '',
+    Poster: movie.poster_path
+      ? `${IMAGE_URL}${movie.poster_path}`
+      : '',
+    Plot: movie.overview || '',
+    imdbRating: movie.vote_average
+      ? movie.vote_average.toFixed(1)
+      : '0.0',
+    Runtime: '',
+    Genre: '',
+    Director: '',
+    Cast: '',
+    Type: 'movie',
+    Released: movie.release_date || '',
+    Language: movie.original_language || '',
+  };
 }
 
-export interface MovieDetailsResponse extends Movie {
-  Response: string;
-  Error?: string;
-}
+export const searchMovies = async (query: string): Promise<Movie[]> => {
+  const res = await api.get('/search/movie', {
+    params: {
+      api_key: API_KEY,
+      query,
+    },
+  });
 
-export const searchMovies = async (
-  query: string,
-  page: number = 1
-): Promise<MovieSearchResponse> => {
-  try {
-    const response = await omdbClient.get('/', {
-      params: {
-        s: query,
-        type: 'movie',
-        page,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error searching movies:', error);
-    throw error;
-  }
+  return res.data.results.map(mapMovie);
 };
 
-export const getMovieDetails = async (imdbID: string): Promise<MovieDetailsResponse> => {
-  try {
-    const response = await omdbClient.get('/', {
-      params: {
-        i: imdbID,
-        plot: 'full',
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching movie details:', error);
-    throw error;
-  }
+export const getPopularMovies = async (): Promise<Movie[]> => {
+  const res = await api.get('/movie/popular', {
+    params: {
+      api_key: API_KEY,
+    },
+  });
+
+  return res.data.results.map(mapMovie);
 };
 
-export const getTrendingMovies = async (): Promise<Movie[]> => {
-  const trendingSearches = ['avatar', 'inception', 'interstellar', 'matrix', 'oppenheimer'];
-  try {
-    const results = await Promise.all(
-      trendingSearches.map(search => searchMovies(search))
-    );
+export const getMovieDetails = async (id: string): Promise<Movie> => {
+  const res = await api.get(`/movie/${id}`, {
+    params: {
+      api_key: API_KEY,
+      append_to_response: 'credits',
+    },
+  });
 
-    const allMovies: Movie[] = [];
-    results.forEach(result => {
-      if (result.Search) {
-        allMovies.push(...result.Search.slice(0, 1));
-      }
-    });
+  const movie = mapMovie(res.data);
 
-    return allMovies;
-  } catch (error) {
-    console.error('Error fetching trending movies:', error);
-    throw error;
-  }
+  movie.Runtime = res.data.runtime
+    ? `${res.data.runtime} min`
+    : '';
+
+  movie.Genre = res.data.genres
+    ?.map((g: any) => g.name)
+    .join(', ');
+
+  movie.Director =
+    res.data.credits?.crew
+      ?.find((c: any) => c.job === 'Director')
+      ?.name || '';
+
+  movie.Cast =
+    res.data.credits?.cast
+      ?.slice(0, 5)
+      ?.map((c: any) => c.name)
+      .join(', ') || '';
+
+  return movie;
 };
