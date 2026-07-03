@@ -9,29 +9,112 @@ interface MovieCardProps {
   isFavorite?: boolean;
 }
 
-const MovieCard: React.FC<MovieCardProps> = ({ movie, onPress, onFavoritePress, isFavorite }) => {
+const MovieCard: React.FC<MovieCardProps> = ({
+  movie,
+  onPress,
+  onFavoritePress,
+  isFavorite,
+}) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <Image source={{ uri: movie.Poster }} style={styles.poster} />
+
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.playButton} onPress={(e) => {
-          e.stopPropagation();
-          onPress();
-        }}>
+        <TouchableOpacity
+          style={styles.playButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            onPress();
+          }}
+        >
           <Ionicons name="play" size={32} color="#fff" />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity 
-        style={styles.favoriteIcon} 
+
+      <TouchableOpacity
+        style={styles.favoriteIcon}
         onPress={(e) => {
           e.stopPropagation();
           onFavoritePress?.();
         }}
       >
-        <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={20} color={isFavorite ? '#e50914' : '#fff'} />
+        <Ionicons
+          name={isFavorite ? 'heart' : 'heart-outline'}
+          size={20}
+          color={isFavorite ? '#e50914' : '#fff'}
+        />
       </TouchableOpacity>
+
       <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={2}>{movie.Title}</Text>
+        <Text style={styles.title} numberOfLines={2}>
+          {movie.Title}
+        </Text>
         <View style={styles.ratingContainer}>
           <Ionicons name="star" size={12} color="#e50914" />
-          <Text style={styles.rating}>{movie
+          <Text style={styles.rating}>{movie.imdbRating}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  poster: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#111',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  playButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(229,9,20,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0,
+  },
+  favoriteIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  info: {
+    padding: 8,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  rating: {
+    color: '#e50914',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+});
+
+export default MovieCard;

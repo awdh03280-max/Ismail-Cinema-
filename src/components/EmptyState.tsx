@@ -15,7 +15,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={64} color="#666" />
+      <Ionicons name={icon as any} size={64} color="#666" />
       <Text style={styles.title}>{title}</Text>
       {message && <Text style={styles.message}>{message}</Text>}
     </View>

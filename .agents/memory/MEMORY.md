@@ -1,0 +1,2 @@
+- [Expo web streaming setup](expo-web-streaming.md) — react-native-webview is native-only; use .native.tsx/.web.tsx platform split to prevent Metro from bundling it on web.
+- [expo-splash-screen on web](expo-splash-screen-web.md) — preventAutoHideAsync() blocks the web render; remove SplashScreen API calls from App.tsx for web-compatible projects that use a custom splash screen component.

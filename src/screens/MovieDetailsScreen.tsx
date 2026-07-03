@@ -17,7 +17,14 @@ import {
   removeFromFavorites,
   isFavorite,
   addToContinueWatching,
+  getPlaybackPosition,
 } from '../storage/storage';
+
+/** Parse "120 min" → 120. Returns 0 if unreadable. */
+const parseRuntime = (runtime: string): number => {
+  const match = runtime?.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+};
 
 const MovieDetailsScreen = ({ route, navigation }: any) => {
   const { movieId } = route.params;
@@ -25,6 +32,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFav, setIsFav] = useState(false);
+  const [savedProgress, setSavedProgress] = useState<number>(0);
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
@@ -38,12 +46,12 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const loadMovieDetails = async () => {
     try {
       setLoading(true);
-
       const details = await getMovieDetails(movieId);
       setMovie(details);
-
       const fav = await isFavorite(movieId);
       setIsFav(fav);
+      const pos = await getPlaybackPosition(movieId);
+      setSavedProgress(pos ?? 0);
     } catch (error) {
       console.log(error);
     } finally {
@@ -53,7 +61,6 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
 
   const handleToggleFavorite = async () => {
     if (!movie) return;
-
     if (isFav) {
       await removeFromFavorites(movieId);
       setIsFav(false);
@@ -64,7 +71,6 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
         poster: movie.Poster,
         addedAt: Date.now(),
       });
-
       setIsFav(true);
     }
   };
@@ -72,12 +78,23 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const handleWatchNow = async () => {
     if (!movie) return;
 
+    const runtimeMinutes = parseRuntime(movie.Runtime);
+
+    // Ensure it's in Continue Watching list before opening player
     await addToContinueWatching({
       imdbID: movieId,
       title: movie.Title,
       poster: movie.Poster,
-      progress: 0,
+      progress: savedProgress,
       watchedAt: Date.now(),
+    });
+
+    navigation.navigate('Player', {
+      movieId,
+      title: movie.Title,
+      poster: movie.Poster,
+      runtimeMinutes,
+      initialProgress: savedProgress,
     });
   };
 
@@ -96,6 +113,8 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       </View>
     );
   }
+
+  const hasProgress = savedProgress > 0;
 
   return (
     <View style={styles.container}>
@@ -133,16 +152,33 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
               <Ionicons name="star" size={16} color="#e50914" />
               <Text style={styles.rating}>{movie.imdbRating}</Text>
             </View>
-
             <Text style={styles.year}>{movie.Year}</Text>
             <Text style={styles.type}>{movie.Type}</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={handleWatchNow}>
+          {/* Progress bar shown if user has started watching */}
+          {hasProgress && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[styles.progressFill, { width: `${savedProgress}%` as any }]}
+                />
+              </View>
+              <Text style={styles.progressLabel}>{Math.round(savedProgress)}% watched</Text>
+            </View>
+          )}
+
+          {/* Watch / Resume button */}
+          <TouchableOpacity style={styles.playButton} onPress={handleWatchNow}>
             <Ionicons name="play" size={20} color="#fff" />
-            <Text style={styles.playButtonText}>Watch Now</Text>
+            <Text style={styles.playButtonText}>
+              {hasProgress ? 'Resume' : 'Watch Now'}
+            </Text>
+            {hasProgress && (
+              <View style={styles.resumeBadge}>
+                <Text style={styles.resumeBadgeText}>{Math.round(savedProgress)}%</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <View style={styles.section}>
@@ -217,7 +253,7 @@ const styles = StyleSheet.create({
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   ratingBadge: {
     flexDirection: 'row',
@@ -239,6 +275,26 @@ const styles = StyleSheet.create({
   type: {
     color: '#999',
   },
+  progressContainer: {
+    marginBottom: 16,
+  },
+  progressTrack: {
+    height: 3,
+    backgroundColor: '#333',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#e50914',
+    borderRadius: 2,
+  },
+  progressLabel: {
+    color: '#e50914',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   playButton: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -247,12 +303,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     marginBottom: 24,
+    gap: 8,
   },
   playButtonText: {
     color: '#fff',
-    marginLeft: 8,
     fontWeight: '700',
     fontSize: 16,
+  },
+  resumeBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  resumeBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   section: {
     marginBottom: 20,

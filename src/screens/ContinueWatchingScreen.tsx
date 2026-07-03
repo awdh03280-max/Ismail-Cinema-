@@ -1,12 +1,27 @@
-import React, { useEffect, useState, useFocusEffect } from 'react';
-import { View, StyleSheet, FlatList, StatusBar, Text, TouchableOpacity, Modal, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import MovieCard from '../components/MovieCard';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getContinueWatching, removeContinueWatching, updateWatchProgress } from '../storage/storage';
+import {
+  getContinueWatching,
+  removeContinueWatching,
+  updateWatchProgress,
+  getPlaybackPosition,
+} from '../storage/storage';
 
 interface WatchingMovie {
   imdbID: string;
@@ -24,7 +39,7 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
   const [selectedMovie, setSelectedMovie] = useState<WatchingMovie | null>(null);
   const [progress, setProgress] = useState(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     StatusBar.setBarStyle('light-content');
     StatusBar.setBackgroundColor('#0a0e27');
   }, []);
@@ -39,7 +54,6 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
     try {
       setLoading(true);
       const watching = await getContinueWatching();
-      // Sort by most recently watched
       const sorted = watching.sort((a, b) => b.watchedAt - a.watchedAt);
       setMovies(sorted);
     } catch (error) {
@@ -60,6 +74,17 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
 
   const handleMoviePress = (movieId: string) => {
     navigation.navigate('MovieDetails', { movieId });
+  };
+
+  /** Navigate straight to the player, resuming from saved progress */
+  const handleResumePlay = async (item: WatchingMovie) => {
+    const savedPos = await getPlaybackPosition(item.imdbID);
+    navigation.navigate('Player', {
+      movieId: item.imdbID,
+      title: item.title,
+      poster: item.poster,
+      initialProgress: savedPos ?? item.progress,
+    });
   };
 
   const handleOpenProgressModal = (movie: WatchingMovie) => {
@@ -86,10 +111,17 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0a0e27', '#1a1a2e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={['#0a0e27', '#1a1a2e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Continue Watching</Text>
       </View>
+
       {movies.length === 0 ? (
         <EmptyState
           icon="play-circle"
@@ -110,33 +142,48 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
                   style={styles.movieCard}
                   onPress={() => handleMoviePress(item.imdbID)}
                 >
-                  <View style={{ flex: 1 }}>
-                    <MovieCard
-                      movie={{
-                        Title: item.title,
-                        Poster: item.poster,
-                        imdbID: item.imdbID,
-                        imdbRating: 'N/A',
-                      }}
-                      onPress={() => handleMoviePress(item.imdbID)}
-                    />
-                  </View>
+                  <MovieCard
+                    movie={{
+                      Title: item.title,
+                      Poster: item.poster,
+                      imdbID: item.imdbID,
+                      imdbRating: 'N/A',
+                    }}
+                    onPress={() => handleMoviePress(item.imdbID)}
+                  />
                 </TouchableOpacity>
+
+                {/* Progress bar */}
                 <View style={styles.progressBar}>
-                  <View style={[styles.progress, { width: `${item.progress}%` }]} />
+                  <View
+                    style={[styles.progressFill, { width: `${item.progress}%` as any }]}
+                  />
                 </View>
+
+                {/* Action row */}
                 <View style={styles.actionButtons}>
+                  {/* Resume play */}
+                  <TouchableOpacity
+                    style={styles.playButton}
+                    onPress={() => handleResumePlay(item)}
+                  >
+                    <Ionicons name="play" size={14} color="#fff" />
+                  </TouchableOpacity>
+
+                  {/* Edit progress manually */}
                   <TouchableOpacity
                     style={styles.progressButton}
                     onPress={() => handleOpenProgressModal(item)}
                   >
-                    <Ionicons name="timer" size={16} color="#fff" />
+                    <Ionicons name="timer" size={14} color="#fff" />
                   </TouchableOpacity>
+
+                  {/* Remove */}
                   <TouchableOpacity
                     style={styles.removeButton}
                     onPress={() => handleRemoveMovie(item.imdbID)}
                   >
-                    <Ionicons name="trash" size={16} color="#fff" />
+                    <Ionicons name="trash" size={14} color="#fff" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -144,6 +191,8 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
           )}
         />
       )}
+
+      {/* Manual progress modal */}
       <Modal visible={!!selectedMovie} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -183,7 +232,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0e27' },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: '700', color: '#fff' },
-  columnWrapper: { justifyContent: 'space-around', paddingHorizontal: 8, marginBottom: 8 },
+  columnWrapper: {
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
   listContent: { paddingTop: 12, paddingBottom: 20 },
   movieContainer: { width: '48%' },
   cardWrapper: { position: 'relative' },
@@ -192,16 +245,25 @@ const styles = StyleSheet.create({
     height: 3,
     backgroundColor: '#333',
     borderRadius: 1.5,
-    marginVertical: 8,
+    marginTop: 6,
+    marginBottom: 6,
     overflow: 'hidden',
   },
-  progress: { height: '100%', backgroundColor: '#e50914' },
-  actionButtons: { flexDirection: 'row', gap: 8 },
+  progressFill: { height: '100%', backgroundColor: '#e50914' },
+  actionButtons: { flexDirection: 'row', gap: 6 },
+  playButton: {
+    flex: 1,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: '#e50914',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   progressButton: {
     flex: 1,
     height: 36,
     borderRadius: 6,
-    backgroundColor: 'rgba(229, 9, 20, 0.8)',
+    backgroundColor: 'rgba(229,9,20,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -209,13 +271,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 36,
     borderRadius: 6,
-    backgroundColor: 'rgba(100, 100, 100, 0.6)',
+    backgroundColor: 'rgba(100,100,100,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -225,11 +287,26 @@ const styles = StyleSheet.create({
     padding: 20,
     width: width - 40,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 12 },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 12,
+  },
   progressLabel: { fontSize: 14, color: '#e50914', marginBottom: 16 },
   slider: { width: '100%', height: 40 },
-  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   cancelButton: { backgroundColor: '#333' },
   saveButton: { backgroundColor: '#e50914' },
   buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },

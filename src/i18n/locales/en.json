@@ -12,6 +12,7 @@
   "search_movies": "Search movies...",
   "no_results": "No results found",
   "watch_now": "Watch Now",
+  "resume": "Resume",
   "add_to_favorites": "Add to Favorites",
   "remove_from_favorites": "Remove from Favorites",
   "rating": "Rating",
@@ -30,5 +31,17 @@
   "dark_mode": "Dark Mode",
   "settings": "Settings",
   "about": "About",
-  "version": "Version"
+  "version": "Version",
+  "player_loading": "Loading stream…",
+  "player_error_title": "Stream Unavailable",
+  "player_error_message": "All servers are currently unavailable. Please try again later.",
+  "player_retry": "Retry All Servers",
+  "player_go_back": "Go Back",
+  "player_servers": "Streaming Servers",
+  "player_quality": "Video Quality",
+  "player_subtitles": "Subtitles",
+  "player_server_label": "Server",
+  "player_close": "Close",
+  "player_quality_note": "Quality depends on server availability",
+  "player_subtitle_note": "Available when supported by the server"
 }

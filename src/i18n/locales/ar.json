@@ -12,6 +12,7 @@
   "search_movies": "ابحث عن أفلام...",
   "no_results": "لم يتم العثور على نتائج",
   "watch_now": "شاهد الآن",
+  "resume": "استمر",
   "add_to_favorites": "إضافة إلى المفضلة",
   "remove_from_favorites": "إزالة من المفضلة",
   "rating": "التقييم",
@@ -30,5 +31,17 @@
   "dark_mode": "الوضع الداكن",
   "settings": "الإعدادات",
   "about": "حول التطبيق",
-  "version": "الإصدار"
+  "version": "الإصدار",
+  "player_loading": "جاري تحميل البث…",
+  "player_error_title": "البث غير متاح",
+  "player_error_message": "جميع الخوادم غير متاحة حاليًا. الرجاء المحاولة لاحقًا.",
+  "player_retry": "إعادة المحاولة",
+  "player_go_back": "رجوع",
+  "player_servers": "خوادم البث",
+  "player_quality": "جودة الفيديو",
+  "player_subtitles": "الترجمة",
+  "player_server_label": "الخادم",
+  "player_close": "إغلاق",
+  "player_quality_note": "الجودة تعتمد على توفر الخادم",
+  "player_subtitle_note": "متوفرة عند دعم الخادم"
 }

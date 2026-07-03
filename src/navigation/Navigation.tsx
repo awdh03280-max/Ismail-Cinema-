@@ -11,36 +11,46 @@ import FavoritesScreen from '../screens/FavoritesScreen';
 import ContinueWatchingScreen from '../screens/ContinueWatchingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MovieDetailsScreen from '../screens/MovieDetailsScreen';
+import PlayerScreen from '../screens/PlayerScreen';
 import SplashScreen from '../screens/SplashScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const HomeStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#0a0e27' },
-      headerTintColor: '#fff',
-      headerTitleStyle: { fontWeight: 'bold' },
+// Shared header options
+const sharedHeader = {
+  headerStyle: { backgroundColor: '#0a0e27' },
+  headerTintColor: '#fff',
+  headerTitleStyle: { fontWeight: 'bold' as const },
+};
+
+// Player screen — always full-screen, no header
+const playerScreen = (
+  <Stack.Screen
+    name="Player"
+    component={PlayerScreen}
+    options={{
       headerShown: false,
+      animation: 'fade',
+      presentation: 'fullScreenModal',
     }}
-  >
+  />
+);
+
+const HomeStack = () => (
+  <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
     <Stack.Screen name="HomeScreen" component={HomeScreen} />
     <Stack.Screen
       name="MovieDetails"
       component={MovieDetailsScreen}
       options={{ headerShown: true }}
     />
+    {playerScreen}
   </Stack.Navigator>
 );
 
 const SearchStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#0a0e27' },
-      headerTintColor: '#fff',
-    }}
-  >
+  <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen
       name="SearchScreen"
       component={SearchScreen}
@@ -51,16 +61,12 @@ const SearchStack = () => (
       component={MovieDetailsScreen}
       options={{ title: 'Details' }}
     />
+    {playerScreen}
   </Stack.Navigator>
 );
 
 const FavoritesStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#0a0e27' },
-      headerTintColor: '#fff',
-    }}
-  >
+  <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen
       name="FavoritesScreen"
       component={FavoritesScreen}
@@ -71,16 +77,12 @@ const FavoritesStack = () => (
       component={MovieDetailsScreen}
       options={{ title: 'Details' }}
     />
+    {playerScreen}
   </Stack.Navigator>
 );
 
 const ContinueWatchingStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#0a0e27' },
-      headerTintColor: '#fff',
-    }}
-  >
+  <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen
       name="ContinueWatchingScreen"
       component={ContinueWatchingScreen}
@@ -91,16 +93,12 @@ const ContinueWatchingStack = () => (
       component={MovieDetailsScreen}
       options={{ title: 'Details' }}
     />
+    {playerScreen}
   </Stack.Navigator>
 );
 
 const ProfileStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#0a0e27' },
-      headerTintColor: '#fff',
-    }}
-  >
+  <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen
       name="ProfileScreen"
       component={ProfileScreen}
@@ -142,7 +140,6 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
-
       <Tab.Screen
         name="Search"
         component={SearchStack}
@@ -153,7 +150,6 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
-
       <Tab.Screen
         name="Favorites"
         component={FavoritesStack}
@@ -164,7 +160,6 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
-
       <Tab.Screen
         name="ContinueWatching"
         component={ContinueWatchingStack}
@@ -175,7 +170,6 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
-
       <Tab.Screen
         name="Profile"
         component={ProfileStack}
@@ -191,11 +185,7 @@ const BottomTabNavigator = () => {
 };
 
 const RootNavigator = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-    }}
-  >
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Splash" component={SplashScreen} />
     <Stack.Screen name="MainApp" component={BottomTabNavigator} />
   </Stack.Navigator>

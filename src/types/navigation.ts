@@ -5,4 +5,11 @@ export type RootStackParamList = {
   ContinueWatching: undefined;
   MovieDetails: { movieId: string };
   MovieList: { category: string };
+  Player: {
+    movieId: string;
+    title: string;
+    poster: string;
+    runtimeMinutes?: number;
+    initialProgress?: number;
+  };
 };

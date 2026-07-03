@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const FAVORITES_KEY = '@ismail_cinema_favorites';
 const CONTINUE_WATCHING_KEY = '@ismail_cinema_continue_watching';
 const LANGUAGE_KEY = '@ismail_cinema_language';
+const PLAYBACK_KEY = '@ismail_cinema_playback';
 
 export interface FavoriteMovie {
   imdbID: string;
@@ -15,9 +16,11 @@ export interface ContinueWatchingMovie {
   imdbID: string;
   title: string;
   poster: string;
-  progress: number;
+  progress: number; // 0-100
   watchedAt: number;
 }
+
+// ── Favorites ──────────────────────────────────────────────────────────────
 
 export const addToFavorites = async (movie: FavoriteMovie): Promise<void> => {
   try {
@@ -57,6 +60,8 @@ export const isFavorite = async (imdbID: string): Promise<boolean> => {
   return favorites.some(m => m.imdbID === imdbID);
 };
 
+// ── Continue Watching ──────────────────────────────────────────────────────
+
 export const addToContinueWatching = async (
   movie: ContinueWatchingMovie
 ): Promise<void> => {
@@ -83,6 +88,69 @@ export const getContinueWatching = async (): Promise<ContinueWatchingMovie[]> =>
     return [];
   }
 };
+
+export const removeContinueWatching = async (imdbID: string): Promise<void> => {
+  try {
+    const continuing = await getContinueWatching();
+    const filtered = continuing.filter(m => m.imdbID !== imdbID);
+    await AsyncStorage.setItem(CONTINUE_WATCHING_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error removing from continue watching:', error);
+  }
+};
+
+export const updateWatchProgress = async (
+  imdbID: string,
+  progress: number
+): Promise<void> => {
+  try {
+    const continuing = await getContinueWatching();
+    const index = continuing.findIndex(m => m.imdbID === imdbID);
+    if (index >= 0) {
+      continuing[index].progress = Math.min(Math.max(Math.round(progress), 0), 100);
+      continuing[index].watchedAt = Date.now();
+      await AsyncStorage.setItem(CONTINUE_WATCHING_KEY, JSON.stringify(continuing));
+    }
+  } catch (error) {
+    console.error('Error updating watch progress:', error);
+  }
+};
+
+// ── Playback position (precise, 0-100) ────────────────────────────────────
+
+interface PlaybackRecord {
+  [imdbID: string]: number;
+}
+
+export const savePlaybackPosition = async (
+  imdbID: string,
+  position: number
+): Promise<void> => {
+  try {
+    const raw = await AsyncStorage.getItem(PLAYBACK_KEY);
+    const record: PlaybackRecord = raw ? JSON.parse(raw) : {};
+    record[imdbID] = Math.min(Math.max(position, 0), 100);
+    await AsyncStorage.setItem(PLAYBACK_KEY, JSON.stringify(record));
+  } catch (error) {
+    console.error('Error saving playback position:', error);
+  }
+};
+
+export const getPlaybackPosition = async (
+  imdbID: string
+): Promise<number | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(PLAYBACK_KEY);
+    if (!raw) return null;
+    const record: PlaybackRecord = JSON.parse(raw);
+    return record[imdbID] ?? null;
+  } catch (error) {
+    console.error('Error getting playback position:', error);
+    return null;
+  }
+};
+
+// ── Language ───────────────────────────────────────────────────────────────
 
 export const setLanguage = async (language: 'en' | 'ar'): Promise<void> => {
   try {
