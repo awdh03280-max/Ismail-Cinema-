@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, getAuthErrorMessage } from '../../context/AuthContext';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import AuthInput from '../../components/auth/AuthInput';
 import SocialButton from '../../components/auth/SocialButton';
 
@@ -24,14 +25,23 @@ const isValidEmail = (v: string) =>
 // ── Component ──────────────────────────────────────────────────────────────
 
 const LoginScreen = ({ navigation }: any) => {
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+
+  // Cross-platform Google Sign-In (web=popup, native=expo-auth-session)
+  const { trigger: googleSignIn, loading: googleLoading } = useGoogleAuth({
+    onError: (err: any) => {
+      const code: string = err?.code ?? '';
+      if (code !== 'auth/popup-closed-by-user') {
+        setApiError(getAuthErrorMessage(code));
+      }
+    },
+  });
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -59,16 +69,7 @@ const LoginScreen = ({ navigation }: any) => {
 
   const handleGoogle = async () => {
     setApiError('');
-    try {
-      setGoogleLoading(true);
-      await signInWithGoogle();
-    } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setApiError(getAuthErrorMessage(err.code ?? ''));
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
+    await googleSignIn();
   };
 
   return (
@@ -153,7 +154,7 @@ const LoginScreen = ({ navigation }: any) => {
             <TouchableOpacity
               style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
               onPress={handleLogin}
-              disabled={loading}
+              disabled={loading || googleLoading}
               activeOpacity={0.85}
             >
               {loading ? (
@@ -175,6 +176,7 @@ const LoginScreen = ({ navigation }: any) => {
               label="Continue with Google"
               onPress={handleGoogle}
               loading={googleLoading}
+              disabled={loading}
               icon={
                 <Text style={styles.googleG}>G</Text>
               }

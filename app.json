@@ -29,6 +29,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#1a1a1a"
     },
-    "orientation": "portrait"
+    "orientation": "portrait",
+    "scheme": "ismailcinema"
   }
 }

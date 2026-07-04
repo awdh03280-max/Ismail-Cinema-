@@ -16,7 +16,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
@@ -27,6 +27,7 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -50,6 +51,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithGoogleCredential: (idToken: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -212,20 +214,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUserProfile(profile);
   };
 
-  // ── Google Sign-In (web: signInWithPopup; native: alert) ──────────────────
+  // ── Google Sign-In (web: signInWithPopup) ─────────────────────────────────
   const signInWithGoogle = async (): Promise<void> => {
-    if (Platform.OS !== 'web') {
-      Alert.alert(
-        'Google Sign-In',
-        'Google Sign-In is available in the web version of Ismail Cinema. Please use email and password on mobile.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
     const provider = new GoogleAuthProvider();
     provider.addScope('email');
     provider.addScope('profile');
     const result = await signInWithPopup(auth, provider);
+    const profile = await ensureUserProfile(result.user, 'google');
+    setUserProfile(profile);
+  };
+
+  // ── Google Sign-In (native: called by useGoogleAuth hook with ID token) ───
+  const signInWithGoogleCredential = async (idToken: string): Promise<void> => {
+    const credential = GoogleAuthProvider.credential(idToken);
+    const result = await signInWithCredential(auth, credential);
     const profile = await ensureUserProfile(result.user, 'google');
     setUserProfile(profile);
   };
@@ -259,6 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         signUp,
         signIn,
         signInWithGoogle,
+        signInWithGoogleCredential,
         forgotPassword,
         logout,
         refreshProfile,
