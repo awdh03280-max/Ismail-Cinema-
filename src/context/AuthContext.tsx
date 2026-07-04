@@ -16,7 +16,6 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
@@ -225,12 +224,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // ── Google Sign-In (native: called by useGoogleAuth hook with ID token) ───
-  const signInWithGoogleCredential = async (idToken: string): Promise<void> => {
-    const credential = GoogleAuthProvider.credential(idToken);
-    const result = await signInWithCredential(auth, credential);
-    const profile = await ensureUserProfile(result.user, 'google');
-    setUserProfile(profile);
-  };
+  const signInWithGoogleCredential = useCallback(
+    async (idToken: string): Promise<void> => {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const result = await signInWithCredential(auth, credential);
+      const profile = await ensureUserProfile(result.user, 'google');
+      setUserProfile(profile);
+    },
+    [], // auth and db are module-level singletons; no reactive dependencies needed
+  );
 
   // ── Forgot Password ────────────────────────────────────────────────────────
   const forgotPassword = async (email: string): Promise<void> => {

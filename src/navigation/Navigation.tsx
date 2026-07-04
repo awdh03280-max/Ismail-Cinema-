@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -166,6 +166,10 @@ const RootNavigator = () => {
   const { user, isLoading } = useAuth();
   const [splashComplete, setSplashComplete] = useState(false);
 
+  // Stable callback — prevents SplashScreen's useEffect from resetting the
+  // 3.5 s timer every time isLoading / user changes cause a parent re-render.
+  const handleSplashComplete = useCallback(() => setSplashComplete(true), []);
+
   // Stay on splash while the animation is running OR while Firebase is resolving auth
   const showSplash = !splashComplete || isLoading;
 
@@ -173,7 +177,7 @@ const RootNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
       {showSplash ? (
         <Stack.Screen name="Splash">
-          {() => <SplashScreen onComplete={() => setSplashComplete(true)} />}
+          {() => <SplashScreen onComplete={handleSplashComplete} />}
         </Stack.Screen>
       ) : user !== null ? (
         <Stack.Screen name="MainApp" component={BottomTabNavigator} />

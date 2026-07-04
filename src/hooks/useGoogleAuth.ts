@@ -4,6 +4,12 @@
  * Web    → Firebase signInWithPopup (no extra config needed)
  * Native → expo-auth-session OAuth flow → Firebase signInWithCredential
  *
+ * Client ID resolution (native):
+ *   1. EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID / EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
+ *      (production: create separate OAuth apps in Google Cloud Console)
+ *   2. Falls back to EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID so the flow works in
+ *      Expo Go (which routes through the Expo auth proxy).
+ *
  * Usage:
  *   const { trigger, loading } = useGoogleAuth({ onError: (err) => ... });
  *   <Button onPress={trigger} loading={loading} />
@@ -14,7 +20,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../context/AuthContext';
 
-// Required on Android — closes the in-app browser tab after OAuth redirect.
+// Required on Android — dismisses the in-app browser tab after OAuth redirect.
 WebBrowser.maybeCompleteAuthSession();
 
 export interface UseGoogleAuthOptions {
@@ -32,7 +38,10 @@ export function useGoogleAuth(
   const { signInWithGoogle, signInWithGoogleCredential } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Stable ref so effects don't re-run when the callback identity changes.
+  // Prevent duplicate processing if the response effect fires more than once.
+  const handledRef = useRef(false);
+
+  // Stable ref so the effect below doesn't re-run when the callback identity changes.
   const onErrorRef = useRef<((err: unknown) => void) | undefined>(
     options?.onError,
   );
@@ -40,16 +49,27 @@ export function useGoogleAuth(
     onErrorRef.current = options?.onError;
   });
 
-  // expo-auth-session Google provider — requests an ID token (OpenID Connect).
-  // webClientId is the OAuth 2.0 Web Client ID from Firebase Console →
-  // Authentication → Sign-in method → Google → Web SDK configuration.
+  // Resolve platform-specific client IDs.
+  // For production standalone builds supply separate Android/iOS OAuth app IDs.
+  // Expo Go works with webClientId via the Expo auth proxy.
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const androidClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? webClientId;
+  const iosClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? webClientId;
+
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    webClientId,
+    androidClientId,
+    iosClientId,
   });
 
   // Handle the OAuth response that arrives after the browser redirect.
   useEffect(() => {
     if (!response) return;
+    // Guard against duplicate processing (e.g. stale re-renders).
+    if (handledRef.current) return;
+    handledRef.current = true;
 
     if (response.type === 'success') {
       const idToken = response.params?.id_token;
@@ -67,11 +87,13 @@ export function useGoogleAuth(
         response.error ?? new Error('Google Sign-In failed.'),
       );
     }
-    // 'cancel' or 'dismiss' — user closed browser; clear loading silently.
+    // 'cancel' or 'dismiss' — user closed the browser; clear loading silently.
     setLoading(false);
   }, [response, signInWithGoogleCredential]);
 
   const trigger = useCallback(async (): Promise<void> => {
+    // Reset duplicate-guard for this new attempt.
+    handledRef.current = false;
     setLoading(true);
     try {
       if (Platform.OS === 'web') {
@@ -79,9 +101,9 @@ export function useGoogleAuth(
         await signInWithGoogle();
         setLoading(false);
       } else {
-        // Native: open system browser / Chrome Custom Tab / SFSafariViewController.
-        // promptAsync() resolves when the browser opens or closes, but the
-        // actual auth result arrives via `response` state → handled in useEffect.
+        // Native: opens system browser / Chrome Custom Tab / SFSafariViewController.
+        // promptAsync resolves when the browser opens or closes, but the auth
+        // result comes back through `response` state — handled in the useEffect above.
         if (!request) {
           setLoading(false);
           onErrorRef.current?.(
