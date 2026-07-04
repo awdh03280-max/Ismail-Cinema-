@@ -171,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             email: fbUser.email ?? '',
             displayName: fbUser.displayName ?? 'Cinema User',
             photoURL: fbUser.photoURL ?? null,
-            provider: 'email',
+            provider: deriveProvider(fbUser),
             createdAt: null,
             updatedAt: null,
           });
