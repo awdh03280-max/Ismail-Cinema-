@@ -167,7 +167,7 @@ const RootNavigator = () => {
   const [splashComplete, setSplashComplete] = useState(false);
 
   // Stable callback — prevents SplashScreen's useEffect from resetting the
-  // 3.5 s timer every time isLoading / user changes cause a parent re-render.
+  // ~2.53 s timer every time isLoading / user changes cause a parent re-render.
   const handleSplashComplete = useCallback(() => setSplashComplete(true), []);
 
   // Stay on splash while the animation is running OR while Firebase is resolving auth
