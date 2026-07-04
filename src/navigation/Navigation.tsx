@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -15,110 +15,81 @@ import PlayerScreen from '../screens/PlayerScreen';
 import SplashScreen from '../screens/SplashScreen';
 import FamilyModeSettingsScreen from '../screens/FamilyModeSettingsScreen';
 import FamilyModePinScreen from '../screens/FamilyModePinScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
+import SignUpScreen from '../screens/auth/SignUpScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Shared header options
+// ── Shared header options ─────────────────────────────────────────────────────
 const sharedHeader = {
   headerStyle: { backgroundColor: '#0a0e27' },
   headerTintColor: '#fff',
   headerTitleStyle: { fontWeight: 'bold' as const },
 };
 
-// Player screen — always full-screen, no header
+// ── Player screen (shared across stacks) ─────────────────────────────────────
 const playerScreen = (
   <Stack.Screen
     name="Player"
     component={PlayerScreen}
-    options={{
-      headerShown: false,
-      animation: 'fade',
-      presentation: 'fullScreenModal',
-    }}
+    options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal' }}
   />
 );
 
+// ── Main stacks ───────────────────────────────────────────────────────────────
 const HomeStack = () => (
   <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
     <Stack.Screen name="HomeScreen" component={HomeScreen} />
-    <Stack.Screen
-      name="MovieDetails"
-      component={MovieDetailsScreen}
-      options={{ headerShown: true }}
-    />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ headerShown: true }} />
     {playerScreen}
   </Stack.Navigator>
 );
 
 const SearchStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen
-      name="SearchScreen"
-      component={SearchScreen}
-      options={{ title: 'Search' }}
-    />
-    <Stack.Screen
-      name="MovieDetails"
-      component={MovieDetailsScreen}
-      options={{ title: 'Details' }}
-    />
+    <Stack.Screen name="SearchScreen" component={SearchScreen} options={{ title: 'Search' }} />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
   </Stack.Navigator>
 );
 
 const FavoritesStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen
-      name="FavoritesScreen"
-      component={FavoritesScreen}
-      options={{ title: 'Favorites' }}
-    />
-    <Stack.Screen
-      name="MovieDetails"
-      component={MovieDetailsScreen}
-      options={{ title: 'Details' }}
-    />
+    <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} options={{ title: 'Favorites' }} />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
   </Stack.Navigator>
 );
 
 const ContinueWatchingStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen
-      name="ContinueWatchingScreen"
-      component={ContinueWatchingScreen}
-      options={{ title: 'Continue Watching' }}
-    />
-    <Stack.Screen
-      name="MovieDetails"
-      component={MovieDetailsScreen}
-      options={{ title: 'Details' }}
-    />
+    <Stack.Screen name="ContinueWatchingScreen" component={ContinueWatchingScreen} options={{ title: 'Continue Watching' }} />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
   </Stack.Navigator>
 );
 
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen
-      name="ProfileScreen"
-      component={ProfileScreen}
-      options={{ title: 'Profile' }}
-    />
-    <Stack.Screen
-      name="FamilyModeSettings"
-      component={FamilyModeSettingsScreen}
-      options={{ title: 'Family Mode', headerShown: true }}
-    />
-    <Stack.Screen
-      name="FamilyModePin"
-      component={FamilyModePinScreen}
-      options={{ headerShown: false, animation: 'slide_from_bottom' }}
-    />
+    <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
+    <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: 'Family Mode' }} />
+    <Stack.Screen name="FamilyModePin" component={FamilyModePinScreen} options={{ headerShown: false, animation: 'slide_from_bottom' }} />
   </Stack.Navigator>
 );
 
+// ── Auth stack ────────────────────────────────────────────────────────────────
+const AuthStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Screen name="SignUp" component={SignUpScreen} options={{ animation: 'slide_from_right' }} />
+    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right' }} />
+  </Stack.Navigator>
+);
+
+// ── Bottom tab navigator ──────────────────────────────────────────────────────
 const BottomTabNavigator = () => {
   const { t } = useTranslation();
 
@@ -136,10 +107,7 @@ const BottomTabNavigator = () => {
           paddingTop: 8,
           height: 65,
         },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          marginTop: 4,
-        },
+        tabBarLabelStyle: { fontSize: 12, marginTop: 4 },
       }}
     >
       <Tab.Screen
@@ -147,9 +115,7 @@ const BottomTabNavigator = () => {
         component={HomeStack}
         options={{
           title: t('home'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -157,9 +123,7 @@ const BottomTabNavigator = () => {
         component={SearchStack}
         options={{
           title: t('search'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -167,9 +131,7 @@ const BottomTabNavigator = () => {
         component={FavoritesStack}
         options={{
           title: t('favorites'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="heart" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -177,9 +139,7 @@ const BottomTabNavigator = () => {
         component={ContinueWatchingStack}
         options={{
           title: t('continue_watching'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="play-circle" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="play-circle" size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -187,22 +147,44 @@ const BottomTabNavigator = () => {
         component={ProfileStack}
         options={{
           title: t('profile'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
       />
     </Tab.Navigator>
   );
 };
 
-const RootNavigator = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Splash" component={SplashScreen} />
-    <Stack.Screen name="MainApp" component={BottomTabNavigator} />
-  </Stack.Navigator>
-);
+// ── Root navigator — auth-aware ───────────────────────────────────────────────
+/**
+ * Auth flow (React Navigation recommended pattern):
+ *  - Splash shows until animation completes AND Firebase auth has resolved
+ *  - After splash: show MainApp (authenticated) or AuthStack (not authenticated)
+ *  - On logout: `user` becomes null → React Navigation switches to AuthStack automatically
+ *  - On login: `user` is set → MainApp appears automatically
+ */
+const RootNavigator = () => {
+  const { user, isLoading } = useAuth();
+  const [splashComplete, setSplashComplete] = useState(false);
 
+  // Stay on splash while the animation is running OR while Firebase is resolving auth
+  const showSplash = !splashComplete || isLoading;
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+      {showSplash ? (
+        <Stack.Screen name="Splash">
+          {() => <SplashScreen onComplete={() => setSplashComplete(true)} />}
+        </Stack.Screen>
+      ) : user !== null ? (
+        <Stack.Screen name="MainApp" component={BottomTabNavigator} />
+      ) : (
+        <Stack.Screen name="Auth" component={AuthStack} />
+      )}
+    </Stack.Navigator>
+  );
+};
+
+// ── Navigation root ───────────────────────────────────────────────────────────
 const Navigation = () => (
   <NavigationContainer>
     <RootNavigator />

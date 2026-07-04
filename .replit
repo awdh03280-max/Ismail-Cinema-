@@ -36,3 +36,13 @@ externalPort = 80
 [[ports]]
 localPort = 5001
 externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_FIREBASE_API_KEY = "AIzaSyBly9NyaYYik42sLEeHTTiuSu5h3qteVtY"
+EXPO_PUBLIC_FIREBASE_APP_ID = "1:523983300969:web:96edb36483d5d43706b5f8"
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = "ismail-cinema.firebaseapp.com"
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "523983300969"
+EXPO_PUBLIC_FIREBASE_PROJECT_ID = "ismail-cinema"
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = "ismail-cinema.firebasestorage.app"
