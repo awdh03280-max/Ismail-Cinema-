@@ -12,4 +12,8 @@ export type RootStackParamList = {
     runtimeMinutes?: number;
     initialProgress?: number;
   };
+  FamilyModeSettings: undefined;
+  FamilyModePin: {
+    mode: 'setup' | 'unlock' | 'disable' | 'change';
+  };
 };

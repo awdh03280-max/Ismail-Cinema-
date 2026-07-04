@@ -13,6 +13,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 import MovieDetailsScreen from '../screens/MovieDetailsScreen';
 import PlayerScreen from '../screens/PlayerScreen';
 import SplashScreen from '../screens/SplashScreen';
+import FamilyModeSettingsScreen from '../screens/FamilyModeSettingsScreen';
+import FamilyModePinScreen from '../screens/FamilyModePinScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -103,6 +105,16 @@ const ProfileStack = () => (
       name="ProfileScreen"
       component={ProfileScreen}
       options={{ title: 'Profile' }}
+    />
+    <Stack.Screen
+      name="FamilyModeSettings"
+      component={FamilyModeSettingsScreen}
+      options={{ title: 'Family Mode', headerShown: true }}
+    />
+    <Stack.Screen
+      name="FamilyModePin"
+      component={FamilyModePinScreen}
+      options={{ headerShown: false, animation: 'slide_from_bottom' }}
     />
   </Stack.Navigator>
 );

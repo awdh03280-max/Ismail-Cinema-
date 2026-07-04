@@ -150,6 +150,35 @@ export const getPlaybackPosition = async (
   }
 };
 
+// ── Family Mode ────────────────────────────────────────────────────────────
+
+const FAMILY_MODE_KEY = '@ismail_cinema_family_mode';
+
+export interface FamilyModeSettings {
+  enabled: boolean;
+  pin: string | null;
+}
+
+export const getFamilyModeSettings = async (): Promise<FamilyModeSettings> => {
+  try {
+    const data = await AsyncStorage.getItem(FAMILY_MODE_KEY);
+    return data ? JSON.parse(data) : { enabled: false, pin: null };
+  } catch (error) {
+    console.error('Error getting family mode settings:', error);
+    return { enabled: false, pin: null };
+  }
+};
+
+export const setFamilyModeSettings = async (
+  settings: FamilyModeSettings
+): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(FAMILY_MODE_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error('Error setting family mode settings:', error);
+  }
+};
+
 // ── Language ───────────────────────────────────────────────────────────────
 
 export const setLanguage = async (language: 'en' | 'ar'): Promise<void> => {

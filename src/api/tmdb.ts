@@ -22,6 +22,8 @@ export interface Movie {
   Type: string;
   Released: string;
   Language: string;
+  /** TMDB adult flag — true for explicitly adult content. */
+  adult: boolean;
 }
 
 function mapMovie(movie: any): Movie {
@@ -45,6 +47,7 @@ function mapMovie(movie: any): Movie {
     Type: 'movie',
     Released: movie.release_date || '',
     Language: movie.original_language || '',
+    adult: movie.adult === true,
   };
 }
 
@@ -53,6 +56,7 @@ export const searchMovies = async (query: string): Promise<Movie[]> => {
     params: {
       api_key: API_KEY,
       query,
+      include_adult: false,
     },
   });
 
