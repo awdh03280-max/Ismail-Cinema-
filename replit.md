@@ -111,6 +111,37 @@ src/
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | *(optional)* iOS OAuth client — native Google Sign-In production UX |
 | `EXPO_PUBLIC_OMDB_API_KEY` | OMDb API key (movie search) |
 
+## Achievements & XP System
+
+Added in full — does NOT touch Movie Player, Google Sign-In, Firebase Auth, or storage.ts.
+
+### Architecture
+- `src/types/achievements.ts` — TypeScript types (Achievement, UserStats, AchievementId, etc.)
+- `src/data/achievements.ts` — 18 achievement definitions + XP helpers (`xpToLevel`, `levelToXP`, `XP_PER_LEVEL=500`)
+- `src/context/XPContext.tsx` — `XPProvider` wrapping the app; Firestore-backed; exports `useXP()` / `useXPPublic()`
+- `src/components/AchievementUnlockToast.tsx` — animated gold toast overlay (slides from top, auto-dismisses 3.5 s)
+- `src/screens/AchievementsScreen.tsx` — full achievements page with progress bars, XP level card, category grouping
+
+### Firestore schema (added to `users/{uid}`)
+```
+xp: number
+moviesWatched / seriesWatched / episodesWatched / commentsCount / animeWatched / animationWatched: number
+loginStreak: number
+lastLoginDate: 'YYYY-MM-DD'
+achievements: { [achievementId]: { unlockedAt: number, xpAwarded: number } }
+```
+
+### Trigger points
+- `handleWatchNow` in MovieDetailsScreen → `trackContentWatched({ contentType, genres })`
+- `handlePostComment` in MovieDetailsScreen → `trackComment()`
+- Login streak → checked on `XPContext` mount via `checkLoginStreak`
+
+### Key design decisions
+- Achievement unlocks are **atomic via `runTransaction`** — server-side idempotency prevents double XP
+- Level achievements (`level_10` … `level_150`) award **0 XP** to prevent infinite level-up loops
+- Base XP per action: watch movie +50, watch series +30, episode +20, comment +10
+- Level formula: `level = floor(xp / 500) + 1`
+
 ## User preferences
 - Keep existing architecture and features intact.
 - Do not modify Movie Player or Family Mode.

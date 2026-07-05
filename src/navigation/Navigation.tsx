@@ -15,6 +15,7 @@ import PlayerScreen from '../screens/PlayerScreen';
 import SplashScreen from '../screens/SplashScreen';
 import FamilyModeSettingsScreen from '../screens/FamilyModeSettingsScreen';
 import FamilyModePinScreen from '../screens/FamilyModePinScreen';
+import AchievementsScreen from '../screens/AchievementsScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -69,6 +70,7 @@ const ProfileStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
     <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} options={{ title: 'My Favorites' }} />
+    <Stack.Screen name="AchievementsScreen" component={AchievementsScreen} options={{ title: 'Achievements' }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
     <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: 'Family Mode' }} />

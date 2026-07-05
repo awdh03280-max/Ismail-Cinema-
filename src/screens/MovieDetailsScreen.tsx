@@ -64,6 +64,7 @@ import CastCard from '../components/CastCard';
 import MovieCard from '../components/MovieCard';
 import SectionTitle from '../components/SectionTitle';
 import TrailerEmbed from '../components/TrailerEmbed';
+import { useXP } from '../context/XPContext';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -241,6 +242,7 @@ const commentStyles = StyleSheet.create({
 const MovieDetailsScreen = ({ route, navigation }: any) => {
   const { movieId, contentType } = route.params;
   const { user, userProfile } = useAuth();
+  const { trackContentWatched, trackComment } = useXP();
 
   // Content state
   const [movie, setMovie] = useState<Movie | null>(null);
@@ -403,6 +405,11 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       progress: savedProgress,
       watchedAt: Date.now(),
     });
+    // Track for achievements (fire-and-forget, non-blocking)
+    const genres = movie.Genre
+      ? movie.Genre.split(',').map((g: string) => g.trim())
+      : [];
+    trackContentWatched({ contentType, genres }).catch(() => {});
     navigation.navigate('Player', {
       movieId,
       title: movie.Title,
@@ -427,6 +434,8 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
         likes: [],
       });
       setCommentText('');
+      // Track comment for achievements (fire-and-forget)
+      trackComment().catch(() => {});
     } catch (err) {
       console.error('[MovieDetails] post comment error:', err);
     } finally {

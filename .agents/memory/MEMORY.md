@@ -1,4 +1,5 @@
 - [Movie interface required fields](movie-interface-fields.md) — 5 new detail fields (trailerKey, certification, productionCompanies, imdbExternalId, tagline) must appear in every Movie object literal; Firestore comments keyed as {contentType}_{movieId}.
+- [Achievements & XP system](achievements-xp-system.md) — atomic Firestore transactions for unlocks; level achievements award 0 XP; stats merged into users/{uid}; triggers in MovieDetailsScreen only.
 - [Firebase Auth implementation](firebase-auth.md) — JS SDK (not RN Firebase); web=signInWithPopup, native=signInWithCredential via expo-auth-session; provider derived from providerData; needs Replit domains in Firebase authorized domains list.
 - [Expo web streaming setup](expo-web-streaming.md) — react-native-webview is native-only; use .native.tsx/.web.tsx platform split to prevent Metro from bundling it on web.
 - [expo-splash-screen on web](expo-splash-screen-web.md) — preventAutoHideAsync() blocks the web render; remove SplashScreen API calls from App.tsx for web-compatible projects that use a custom splash screen component.

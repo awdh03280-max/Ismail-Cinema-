@@ -17,6 +17,17 @@ import i18next from '../i18n/i18n';
 import { setLanguage, getLanguage } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { useAuth } from '../context/AuthContext';
+import { useXP } from '../context/XPContext';
+
+// Small inline component so it can safely call useXP inside the provider tree
+const AchievementsSummary: React.FC = () => {
+  const { unlockedIds, allAchievements, level } = useXP();
+  return (
+    <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+      {unlockedIds.size}/{allAchievements.length} unlocked · Level {level}
+    </Text>
+  );
+};
 
 const ProfileScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
@@ -192,7 +203,7 @@ const ProfileScreen = ({ navigation }: any) => {
 
           {/* Favorites */}
           <TouchableOpacity
-            style={[styles.settingItem, styles.settingItemLast]}
+            style={styles.settingItem}
             onPress={() => navigation.navigate('FavoritesScreen')}
             activeOpacity={0.75}
           >
@@ -201,6 +212,22 @@ const ProfileScreen = ({ navigation }: any) => {
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingLabel}>{t('favorites')}</Text>
                 <Text style={styles.settingValue}>View your saved titles</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+          </TouchableOpacity>
+
+          {/* Achievements */}
+          <TouchableOpacity
+            style={[styles.settingItem, styles.settingItemLast]}
+            onPress={() => navigation.navigate('AchievementsScreen')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="trophy" size={24} color="#d4af37" />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Achievements</Text>
+                <AchievementsSummary />
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#555" />
