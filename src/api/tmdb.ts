@@ -21,6 +21,8 @@ export interface Movie {
   Backdrop: string;
   Plot: string;
   imdbRating: string;
+  /** Raw TMDB vote count backing the rating. */
+  voteCount: number;
   Runtime: string;
   Genre: string;
   Director: string;
@@ -28,6 +30,8 @@ export interface Movie {
   Type: string;
   Released: string;
   Language: string;
+  /** Full production country names, comma-separated (e.g. "United States, France"). */
+  Country: string;
   /** TMDB adult flag — true for explicitly adult content. */
   adult: boolean;
   /** 'movie' | 'tv' — drives which TMDB endpoint to call for details. */
@@ -51,6 +55,7 @@ function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
     imdbRating: movie.vote_average
       ? movie.vote_average.toFixed(1)
       : '0.0',
+    voteCount: movie.vote_count || 0,
     Runtime: '',
     Genre: '',
     Director: '',
@@ -58,6 +63,9 @@ function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
     Type: contentType === 'tv' ? 'series' : 'movie',
     Released: movie.release_date || movie.first_air_date || '',
     Language: movie.original_language || '',
+    Country: (movie.production_countries || [])
+      .map((c: any) => c.name)
+      .join(', '),
     adult: movie.adult === true,
     contentType,
   };
@@ -220,6 +228,30 @@ export const getDetails = async (
   return contentType === 'tv' ? getTVShowDetails(id) : getMovieDetails(id);
 };
 
+/** Similar titles based on shared genres/keywords. */
+export const getSimilarTitles = async (
+  id: string,
+  contentType: 'movie' | 'tv' = 'movie'
+): Promise<Movie[]> => {
+  const res = await api.get(`/${contentType}/${id}/similar`, {
+    params: { api_key: API_KEY },
+  });
+
+  return (res.data.results || []).map((m: any) => mapMovie(m, contentType));
+};
+
+/** Recommended titles based on TMDB's recommendation engine. */
+export const getRecommendedTitles = async (
+  id: string,
+  contentType: 'movie' | 'tv' = 'movie'
+): Promise<Movie[]> => {
+  const res = await api.get(`/${contentType}/${id}/recommendations`, {
+    params: { api_key: API_KEY },
+  });
+
+  return (res.data.results || []).map((m: any) => mapMovie(m, contentType));
+};
+
 /** Cast/crew member returned by TMDB credits endpoints. */
 export interface CastMember {
   id: number;
@@ -231,9 +263,15 @@ export interface CastMember {
 
 export interface CreditsResult {
   cast: CastMember[];
+  /** Full crew list, unfiltered. */
   crew: CastMember[];
   director: string;
+  writers: string[];
+  producers: string[];
 }
+
+const WRITER_JOBS = ['Writer', 'Screenplay', 'Story', 'Author'];
+const PRODUCER_JOBS = ['Producer', 'Executive Producer'];
 
 export const getCredits = async (
   id: string,
@@ -244,7 +282,7 @@ export const getCredits = async (
   });
 
   const cast: CastMember[] = (res.data.cast || [])
-    .slice(0, 12)
+    .slice(0, 20)
     .map((c: any) => ({
       id: c.id,
       name: c.name,
@@ -252,19 +290,35 @@ export const getCredits = async (
       profilePath: c.profile_path ? `${IMAGE_URL}${c.profile_path}` : null,
     }));
 
-  const crew: CastMember[] = (res.data.crew || [])
-    .slice(0, 8)
-    .map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      job: c.job,
-      profilePath: c.profile_path ? `${IMAGE_URL}${c.profile_path}` : null,
-    }));
+  const rawCrew: any[] = res.data.crew || [];
+
+  const crew: CastMember[] = rawCrew.map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    job: c.job,
+    profilePath: c.profile_path ? `${IMAGE_URL}${c.profile_path}` : null,
+  }));
 
   const director =
-    (res.data.crew || []).find((c: any) => c.job === 'Director')?.name || '';
+    rawCrew.find((c: any) => c.job === 'Director')?.name || '';
 
-  return { cast, crew, director };
+  const writers = Array.from(
+    new Set(
+      rawCrew
+        .filter((c: any) => WRITER_JOBS.includes(c.job))
+        .map((c: any) => c.name)
+    )
+  );
+
+  const producers = Array.from(
+    new Set(
+      rawCrew
+        .filter((c: any) => PRODUCER_JOBS.includes(c.job))
+        .map((c: any) => c.name)
+    )
+  );
+
+  return { cast, crew, director, writers, producers };
 };
 
 /** Content feed for a given navigation category — hero + carousels. */
