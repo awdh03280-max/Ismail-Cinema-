@@ -8,7 +8,7 @@ interface LoadingSpinnerProps {
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'large',
-  color = '#e50914',
+  color = '#d4af37',
 }) => {
   return (
     <View style={styles.container}>
@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0e27',
+    backgroundColor: '#000000',
   },
 });
 

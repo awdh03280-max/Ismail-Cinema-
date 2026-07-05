@@ -62,25 +62,25 @@ const MovieCard: React.FC<MovieCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surfaceCard,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 4,
     borderWidth: 1,
     borderColor: colors.border,
     ...Platform.select({
-      web: { boxShadow: '0 6px 18px rgba(0,0,0,0.55)' } as object,
+      web: { boxShadow: '0 10px 28px rgba(0,0,0,0.65)' } as object,
       default: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.45,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+        elevation: 7,
       },
     }),
   },
   poster: {
     width: '100%',
-    height: 180,
+    height: 225,
     backgroundColor: colors.surface,
   },
   overlay: {

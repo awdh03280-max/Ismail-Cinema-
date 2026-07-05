@@ -14,7 +14,7 @@ const FavoritesScreen = ({ navigation }: any) => {
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
-    StatusBar.setBackgroundColor('#0a0e27');
+    StatusBar.setBackgroundColor('#000000');
   }, []);
 
   useFocusEffect(
@@ -52,11 +52,11 @@ const FavoritesScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient 
-        colors={['#0a0e27', '#1a1a2e']} 
-        start={{ x: 0, y: 0 }} 
-        end={{ x: 1, y: 1 }} 
-        style={StyleSheet.absoluteFill} 
+      <LinearGradient
+        colors={['#000000', '#0d0d0d']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
       />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Favorites</Text>
@@ -119,7 +119,7 @@ const FavoritesScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27' },
+  container: { flex: 1, backgroundColor: '#000000' },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: '700', color: '#fff' },
   columnWrapper: { justifyContent: 'space-around', paddingHorizontal: 8, marginBottom: 8 },

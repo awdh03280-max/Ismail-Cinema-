@@ -7,8 +7,6 @@ import { useTranslation } from 'react-i18next';
 
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
-import AnimeScreen from '../screens/AnimeScreen';
-import AnimationScreen from '../screens/AnimationScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ContinueWatchingScreen from '../screens/ContinueWatchingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -59,30 +57,6 @@ const SearchStack = () => (
   </Stack.Navigator>
 );
 
-const AnimeStack = () => (
-  <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
-    <Stack.Screen name="AnimeScreen" component={AnimeScreen} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ headerShown: true }} />
-    {playerScreen}
-  </Stack.Navigator>
-);
-
-const AnimationStack = () => (
-  <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
-    <Stack.Screen name="AnimationScreen" component={AnimationScreen} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ headerShown: true }} />
-    {playerScreen}
-  </Stack.Navigator>
-);
-
-const FavoritesStack = () => (
-  <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} options={{ title: 'Favorites' }} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
-    {playerScreen}
-  </Stack.Navigator>
-);
-
 const ContinueWatchingStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen name="ContinueWatchingScreen" component={ContinueWatchingScreen} options={{ title: 'Continue Watching' }} />
@@ -94,6 +68,9 @@ const ContinueWatchingStack = () => (
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
+    <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} options={{ title: 'My Favorites' }} />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
+    {playerScreen}
     <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: 'Family Mode' }} />
     <Stack.Screen name="FamilyModePin" component={FamilyModePinScreen} options={{ headerShown: false, animation: 'slide_from_bottom' }} />
   </Stack.Navigator>
@@ -143,30 +120,6 @@ const BottomTabNavigator = () => {
         options={{
           title: t('search'),
           tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Anime"
-        component={AnimeStack}
-        options={{
-          title: 'Anime',
-          tabBarIcon: ({ color, size }) => <Ionicons name="flash" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Animation"
-        component={AnimationStack}
-        options={{
-          title: 'Animation',
-          tabBarIcon: ({ color, size }) => <Ionicons name="color-palette" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Favorites"
-        component={FavoritesStack}
-        options={{
-          title: t('favorites'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} />,
         }}
       />
       <Tab.Screen

@@ -457,6 +457,113 @@ export const getCredits = async (
   return { cast, crew, director, writers, producers };
 };
 
+// ── Home screen section endpoints ─────────────────────────────────────────────
+
+/** Trending across movies + TV this week — powers the "Trending Now" row. */
+export const getTrendingNow = async (): Promise<Movie[]> => {
+  const res = await api.get('/trending/all/week', {
+    params: { api_key: API_KEY },
+  });
+
+  return (res.data.results || [])
+    .filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv')
+    .map((m: any) => mapMovie(m, m.media_type === 'tv' ? 'tv' : 'movie'));
+};
+
+/** Alias — "Must Watch Movies" row. */
+export const getMustWatchMovies = getPopularMovies;
+
+/** Alias — "Must Watch Series" row. */
+export const getMustWatchSeries = getPopularTVShows;
+
+/** Highest-rated non-Japanese animation — "Best Animation" row. */
+export const getTopRatedAnimation = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_genres: 16,
+      sort_by: 'vote_average.desc',
+      'vote_count.gte': 100,
+    },
+  });
+
+  return res.data.results
+    .filter((m: any) => m.original_language !== 'ja')
+    .map((m: any) => mapMovie(m, 'movie'));
+};
+
+/** Newly released movies — "Recently Added" row. */
+export const getRecentlyAdded = async (): Promise<Movie[]> => {
+  const res = await api.get('/movie/now_playing', {
+    params: { api_key: API_KEY },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+// ── Search screen: genre filter chips ─────────────────────────────────────────
+
+/** TMDB movie genre IDs for the Search screen's filter chips (Anime/Animation are special-cased). */
+export const GENRE_IDS: Record<string, number> = {
+  Action: 28,
+  Comedy: 35,
+  Horror: 27,
+  War: 10752,
+  Romance: 10749,
+  Crime: 80,
+  Adventure: 12,
+  Family: 10751,
+  Fantasy: 14,
+  'Sci-Fi': 878,
+  Drama: 18,
+  History: 36,
+  Mystery: 9648,
+  Thriller: 53,
+};
+
+export const GENRE_LIST = [
+  'Action', 'Comedy', 'Horror', 'War', 'Romance', 'Crime', 'Adventure',
+  'Animation', 'Anime', 'Family', 'Fantasy', 'Sci-Fi', 'Drama', 'History',
+  'Mystery', 'Thriller',
+];
+
+/** Browse titles by genre chip — special-cased for Anime / Animation. */
+export const discoverByGenre = async (genre: string): Promise<Movie[]> => {
+  if (genre === 'Anime') return getAnime();
+  if (genre === 'Animation') return getAnimationMovies();
+
+  const genreId = GENRE_IDS[genre];
+  if (!genreId) return [];
+
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_genres: genreId,
+      sort_by: 'popularity.desc',
+    },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+/** Generic TV search — used alongside searchMovies for global text search. */
+export const searchTVShows = async (query: string): Promise<Movie[]> => {
+  const res = await api.get('/search/tv', {
+    params: { api_key: API_KEY, query, include_adult: false },
+  });
+
+  return (res.data.results || []).map((m: any) => mapMovie(m, 'tv'));
+};
+
+/** Combined movie + TV text search for the Search screen. */
+export const searchAll = async (query: string): Promise<Movie[]> => {
+  const [movies, shows] = await Promise.all([
+    searchMovies(query),
+    searchTVShows(query),
+  ]);
+  return [...movies, ...shows];
+};
+
 /** Content feed for a given navigation category — hero + carousels. */
 export interface CategoryFeed {
   hero: Movie[];

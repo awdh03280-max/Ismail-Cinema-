@@ -8,24 +8,61 @@ import {
   Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getCategoryFeed, ContentCategory, Movie } from '../api/tmdb';
+import {
+  Movie,
+  getTrendingNow,
+  getTopRatedMovies,
+  getMustWatchMovies,
+  getMustWatchSeries,
+  getTopRatedAnime,
+  getTopRatedAnimation,
+  getRecentlyAdded,
+} from '../api/tmdb';
 import MovieCard from '../components/MovieCard';
 import SectionTitle from '../components/SectionTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HeroBanner from '../components/HeroBanner';
-import CategoryTabs from '../components/CategoryTabs';
 import {
   addToFavorites,
   removeFromFavorites,
   isFavorite,
+  getContinueWatching,
+  ContinueWatchingMovie,
 } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { colors } from '../theme/colors';
 
+interface HomeSection {
+  key: string;
+  title: string;
+  movies: Movie[];
+}
+
+/** Maps a stored continue-watching entry to the minimal shape MovieCard needs. */
+const toContinueWatchingMovie = (m: ContinueWatchingMovie): Movie => ({
+  imdbID: m.imdbID,
+  Title: m.title,
+  Year: '',
+  Poster: m.poster,
+  Backdrop: '',
+  Plot: '',
+  imdbRating: 'N/A',
+  voteCount: 0,
+  Runtime: '',
+  Genre: '',
+  Director: '',
+  Cast: '',
+  Type: 'movie',
+  Released: '',
+  Language: '',
+  Country: '',
+  adult: false,
+  contentType: 'movie',
+});
+
 const HomeScreen = ({ navigation }: any) => {
-  const [category, setCategory] = useState<ContentCategory>('movies');
   const [hero, setHero] = useState<Movie[]>([]);
-  const [sections, setSections] = useState<{ title: string; movies: Movie[] }[]>([]);
+  const [sections, setSections] = useState<HomeSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -40,13 +77,49 @@ const HomeScreen = ({ navigation }: any) => {
   const loadMovies = useCallback(async () => {
     try {
       setLoading(true);
-      const feed = await getCategoryFeed(category);
 
-      const filteredHero = filterMovies(feed.hero);
-      const filteredSections = feed.sections.map(section => ({
-        title: section.title,
-        movies: filterMovies(section.movies),
-      }));
+      const [
+        trending,
+        topRated,
+        mustWatchMovies,
+        mustWatchSeries,
+        bestAnime,
+        bestAnimation,
+        continueWatching,
+        recentlyAdded,
+      ] = await Promise.all([
+        getTrendingNow(),
+        getTopRatedMovies(),
+        getMustWatchMovies(),
+        getMustWatchSeries(),
+        getTopRatedAnime(),
+        getTopRatedAnimation(),
+        getContinueWatching(),
+        getRecentlyAdded(),
+      ]);
+
+      const filteredHero = filterMovies(trending.slice(0, 6));
+
+      const rawSections: HomeSection[] = [
+        { key: 'trending', title: '🔥 Trending Now', movies: trending },
+        { key: 'topRated', title: '⭐ Top Rated Movies', movies: topRated },
+        { key: 'mustWatchMovies', title: '🍿 Must Watch Movies', movies: mustWatchMovies },
+        { key: 'mustWatchSeries', title: '📺 Must Watch Series', movies: mustWatchSeries },
+        { key: 'bestAnime', title: '🎌 Best Anime', movies: bestAnime },
+        { key: 'bestAnimation', title: '🎨 Best Animation', movies: bestAnimation },
+        {
+          key: 'continueWatching',
+          title: '❤️ Continue Watching',
+          movies: continueWatching
+            .sort((a, b) => b.watchedAt - a.watchedAt)
+            .map(toContinueWatchingMovie),
+        },
+        { key: 'recentlyAdded', title: '🆕 Recently Added', movies: recentlyAdded },
+      ];
+
+      const filteredSections = rawSections
+        .map(section => ({ ...section, movies: filterMovies(section.movies) }))
+        .filter(section => section.movies.length > 0);
 
       setHero(filteredHero);
       setSections(filteredSections);
@@ -65,7 +138,7 @@ const HomeScreen = ({ navigation }: any) => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, isEnabled, isUnlocked]);
+  }, [isEnabled, isUnlocked]);
 
   useEffect(() => {
     loadMovies();
@@ -141,23 +214,20 @@ const HomeScreen = ({ navigation }: any) => {
           onMoreInfo={handleMoviePress}
         />
 
-        <View style={styles.tabsWrapper}>
-          <CategoryTabs active={category} onChange={setCategory} />
-        </View>
-
         {sections.map(section => (
-          <View key={section.title}>
+          <View key={section.key}>
             <SectionTitle title={section.title} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.carousel}>
                 {section.movies.map(movie => (
-                  <MovieCard
-                    key={movie.imdbID}
-                    movie={movie}
-                    onPress={() => handleMoviePress(movie)}
-                    onFavoritePress={() => handleFavoritePress(movie)}
-                    isFavorite={favorites.has(movie.imdbID)}
-                  />
+                  <View key={movie.imdbID} style={styles.cardWrap}>
+                    <MovieCard
+                      movie={movie}
+                      onPress={() => handleMoviePress(movie)}
+                      onFavoritePress={() => handleFavoritePress(movie)}
+                      isFavorite={favorites.has(movie.imdbID)}
+                    />
+                  </View>
                 ))}
               </View>
             </ScrollView>
@@ -212,10 +282,8 @@ const styles = StyleSheet.create({
   },
   fmBadgeUnlocked: { backgroundColor: 'rgba(30,160,30,0.7)' },
   fmBadgeText: { fontSize: 11, color: '#fff', fontWeight: '700' },
-  tabsWrapper: {
-    marginTop: 18,
-  },
-  carousel: { flexDirection: 'row', paddingHorizontal: 16, gap: 12 },
+  carousel: { flexDirection: 'row', paddingHorizontal: 16, gap: 14 },
+  cardWrap: { width: 150 },
 });
 
 export default HomeScreen;

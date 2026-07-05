@@ -29,7 +29,7 @@ const ProfileScreen = ({ navigation }: any) => {
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
-    StatusBar.setBackgroundColor('#0a0e27');
+    StatusBar.setBackgroundColor('#000000');
     loadLanguage();
   }, []);
 
@@ -92,7 +92,7 @@ const ProfileScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0a0e27', '#1a1a2e']}
+        colors={['#000000', '#0d0d0d']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -169,7 +169,7 @@ const ProfileScreen = ({ navigation }: any) => {
 
           {/* Family Mode */}
           <TouchableOpacity
-            style={[styles.settingItem, styles.settingItemLast]}
+            style={styles.settingItem}
             onPress={() => navigation.navigate('FamilyModeSettings')}
             activeOpacity={0.75}
           >
@@ -188,6 +188,22 @@ const ProfileScreen = ({ navigation }: any) => {
               )}
               <Ionicons name="chevron-forward" size={18} color="#555" />
             </View>
+          </TouchableOpacity>
+
+          {/* Favorites */}
+          <TouchableOpacity
+            style={[styles.settingItem, styles.settingItemLast]}
+            onPress={() => navigation.navigate('FavoritesScreen')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="heart" size={24} color="#d4af37" />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>{t('favorites')}</Text>
+                <Text style={styles.settingValue}>View your saved titles</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
           </TouchableOpacity>
         </View>
 
@@ -267,7 +283,7 @@ const ProfileScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27' },
+  container: { flex: 1, backgroundColor: '#000000' },
   scrollContent: { paddingBottom: 80 },
 
   profileHeader: {
