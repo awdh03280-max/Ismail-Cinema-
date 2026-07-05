@@ -4,7 +4,7 @@
  * Slides down from the top with a gold shimmer, auto-dismisses after 3.5 s.
  * Driven by XPContext's pendingUnlocks queue — shows one at a time.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, type ComponentProps } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -133,7 +133,7 @@ const AchievementUnlockToast: React.FC = () => {
     <Animated.View
       style={[
         styles.wrapper,
-        { top: TOP_OFFSET },
+        { top: TOP_OFFSET, pointerEvents: 'box-none' },
         {
           transform: [
             { translateY: slideAnim },
@@ -142,7 +142,6 @@ const AchievementUnlockToast: React.FC = () => {
           opacity: opacityAnim,
         },
       ]}
-      pointerEvents="box-none"
     >
       <TouchableOpacity activeOpacity={0.9} onPress={dismiss} style={styles.touchable}>
         <LinearGradient
@@ -158,9 +157,8 @@ const AchievementUnlockToast: React.FC = () => {
           <Animated.View
             style={[
               styles.shimmer,
-              { transform: [{ translateX: shimmerTranslate }] },
+              { transform: [{ translateX: shimmerTranslate }], pointerEvents: 'none' },
             ]}
-            pointerEvents="none"
           />
 
           <View style={styles.content}>
@@ -171,7 +169,7 @@ const AchievementUnlockToast: React.FC = () => {
                 style={styles.iconGradient}
               >
                 <Ionicons
-                  name={current.achievement.icon as any}
+                  name={current.achievement.icon as ComponentProps<typeof Ionicons>['name']}
                   size={26}
                   color="#000"
                 />
@@ -212,7 +210,7 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     zIndex: 9999,
-    elevation: 20,
+    ...Platform.select({ default: { elevation: 20 }, web: {} }),
   },
   touchable: { borderRadius: 16, overflow: 'hidden' },
   card: {

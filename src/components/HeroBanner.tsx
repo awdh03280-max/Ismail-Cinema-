@@ -10,6 +10,7 @@ import {
   Easing,
   Platform,
 } from 'react-native';
+import { ND } from '../utils/animation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Movie } from '../api/tmdb';
@@ -45,20 +46,20 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ movies, onPlay, onMoreInfo }) =
       toValue: 1.12,
       duration: 7000,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
+      useNativeDriver: ND,
     }).start();
 
     const rotateTimer = setInterval(() => {
       Animated.timing(fade, {
         toValue: 0,
         duration: 400,
-        useNativeDriver: true,
+        useNativeDriver: ND,
       }).start(() => {
         setIndex(prev => (prev + 1) % movies.length);
         Animated.timing(fade, {
           toValue: 1,
           duration: 500,
-          useNativeDriver: true,
+          useNativeDriver: ND,
         }).start();
       });
     }, 7000);

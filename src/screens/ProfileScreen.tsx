@@ -180,9 +180,9 @@ const ProfileScreen = ({ navigation }: any) => {
     ? isUnlocked ? t('fm_unlocked_badge') : t('fm_locked_badge')
     : t('fm_status_off');
   const fmStatusColor = isEnabled ? '#e50914' : '#666';
-  const fmIcon: any = isEnabled
+  const fmIcon = (isEnabled
     ? isUnlocked ? 'shield-checkmark' : 'shield'
-    : 'shield-outline';
+    : 'shield-outline') as React.ComponentProps<typeof Ionicons>['name'];
 
   // User display info — prefer Firestore profile, fall back to Firebase Auth
   const displayName =

@@ -21,6 +21,13 @@ import {
 import { Movie } from '../api/tmdb';
 import { hashPin } from '../utils/pinHash';
 
+/**
+ * Age certifications that Family Mode always blocks, regardless of whether
+ * TMDB has flagged a title `adult: true`. Many explicitly mature films are
+ * not flagged by TMDB, so the certification provides a secondary safety net.
+ */
+const BLOCKED_CERTS = new Set(['NC-17', 'X', 'XXX', 'TV-MA']);
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FamilyModeContextType {
@@ -125,15 +132,17 @@ export const FamilyModeProvider: React.FC<{ children: React.ReactNode }> = ({
   // ── Content helpers ────────────────────────────────────────────────────────
 
   const isAdultContent = useCallback((movie: Movie): boolean => {
-    return (movie as any).adult === true;
+    if (movie.adult === true) return true;
+    if (movie.certification && BLOCKED_CERTS.has(movie.certification)) return true;
+    return false;
   }, []);
 
   const filterMovies = useCallback(
     <T extends Movie>(movies: T[]): T[] => {
       if (!settings.enabled || isUnlocked) return movies;
-      return movies.filter(m => !(m as any).adult);
+      return movies.filter(m => !isAdultContent(m));
     },
-    [settings.enabled, isUnlocked]
+    [settings.enabled, isUnlocked, isAdultContent]
   );
 
   return (

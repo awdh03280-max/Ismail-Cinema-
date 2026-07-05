@@ -75,6 +75,8 @@ export interface XPContextType {
   unlockedIds: Set<AchievementId>;
   allAchievements: Achievement[];
   trackContentWatched: (params: {
+    /** Optional dedup key — same title counted once per session. */
+    imdbID?: string;
     contentType: 'movie' | 'tv';
     genres?: string[];
     isNewEpisode?: boolean;

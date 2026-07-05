@@ -11,6 +11,7 @@ import {
   Image,
   StyleSheet,
   Linking,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,11 +69,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(229,9,20,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.red,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 20,
-    elevation: 12,
+    ...Platform.select({
+      web: { boxShadow: `0 0 32px 8px ${colors.red}99` } as object,
+      default: {
+        shadowColor: colors.red,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9,
+        shadowRadius: 20,
+        elevation: 12,
+      },
+    }),
   },
   label: {
     color: '#fff',

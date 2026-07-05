@@ -12,8 +12,8 @@
  *   2 400 ms – exit: black overlay fades in (600 ms)
  *   3 000 ms – onComplete() fires
  *
- * All transform/opacity animations use useNativeDriver: true.
- * On Expo web, React Native's JS fallback handles them transparently.
+ * All transform/opacity animations use the ND helper (Platform.OS !== 'web').
+ * The native driver is not available on web; JS fallback is used there.
  *
  * Sound: expo-av on native (cinema_startup.wav), Web Audio API on web.
  */
@@ -131,7 +131,8 @@ interface SplashScreenProps {
 }
 
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
-  const ND = { useNativeDriver: true } as const;
+  // Native driver is not supported on web; JS fallback handles transform/opacity fine.
+  const ND = { useNativeDriver: Platform.OS !== 'web' } as const;
 
   // Glow burst: fast outward explosion then dissipates
   const burstScale   = useRef(new Animated.Value(0.1)).current;
@@ -177,12 +178,12 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     // ── 1. Glow burst: expand rapidly then dissolve ───────────────────────────
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(burstOpacity, { toValue: 0.85, duration: 320, delay: 80,  useNativeDriver: true }),
-        Animated.timing(burstScale,   { toValue: 1.7,  duration: 520, delay: 80, easing: ease, useNativeDriver: true }),
+        Animated.timing(burstOpacity, { toValue: 0.85, duration: 320, delay: 80,  ...ND }),
+        Animated.timing(burstScale,   { toValue: 1.7,  duration: 520, delay: 80, easing: ease, ...ND }),
       ]),
       Animated.parallel([
-        Animated.timing(burstOpacity, { toValue: 0.12, duration: 500, useNativeDriver: true }),
-        Animated.timing(burstScale,   { toValue: 2.6,  duration: 500, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(burstOpacity, { toValue: 0.12, duration: 500, ...ND }),
+        Animated.timing(burstScale,   { toValue: 2.6,  duration: 500, easing: Easing.linear, ...ND }),
       ]),
     ]).start();
 
@@ -261,10 +262,10 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
 
       {/* ── Gold lighting sweep — diagonal beam raking across the screen ── */}
       <Animated.View
-        pointerEvents="none"
         style={[
           styles.sweep,
           {
+            pointerEvents: 'none',
             opacity: sweepOpacity,
             transform: [
               { translateX: sweepX.interpolate({ inputRange: [-1, 2], outputRange: [-W, W * 1.6] }) },

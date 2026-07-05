@@ -1,0 +1,139 @@
+rules_version = '2';
+
+// ── Ismail Cinema — Firestore Security Rules ────────────────────────────────
+//
+// Deploy via Firebase CLI:  firebase deploy --only firestore:rules
+//
+// Collections:
+//   users/{uid}                              — user profile + XP/stats
+//   follows/{docId}                          — follow edges  ({followerId}_{followingId})
+//   notifications/{uid}/feed/{docId}         — activity feed (written by follower on behalf of followee)
+//   movieComments/{contentKey}/threads/{id}  — per-movie comment threads
+//   watchParties/{partyId}                   — collaborative watch rooms
+//   watchParties/{partyId}/members/{uid}     — party membership
+//   watchParties/{partyId}/chat/{docId}      — party chat messages
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // ── User profiles ────────────────────────────────────────────────────────
+    // Any authenticated user can read public profiles (needed for follow/party UX).
+    // Only the owner may write their own document.
+    //
+    // Allowed mutable fields are checked with diff().affectedKeys() so that
+    // pre-existing fields (uid, createdAt, etc.) don't cause a spurious deny.
+    //
+    // Mutable fields written by AuthContext:
+    //   email, displayName, photoURL, provider, updatedAt
+    // Mutable fields written by XPContext (via increment / set):
+    //   xp, level, moviesWatched, seriesWatched, episodesWatched,
+    //   commentsCount, animeWatched, animationWatched,
+    //   loginStreak, lastLoginDate, achievements
+    // Mutable fields written by FollowContext (via increment):
+    //   followersCount, followingCount
+    //
+    // Immutable fields (uid, createdAt) are never in a diff — no need to list them.
+    match /users/{uid} {
+      allow read: if isAuth();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email', 'displayName', 'photoURL', 'provider', 'updatedAt',
+          'xp', 'level',
+          'moviesWatched', 'seriesWatched', 'episodesWatched',
+          'commentsCount', 'animeWatched', 'animationWatched',
+          'loginStreak', 'lastLoginDate', 'achievements',
+          'followersCount', 'followingCount'
+        ]);
+    }
+
+    // ── Follows ──────────────────────────────────────────────────────────────
+    // Doc ID = "{followerId}_{followingId}"; anyone authenticated can read.
+    // Only the follower can create or delete their own follow edge.
+    match /follows/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && request.resource.data.followerId == request.auth.uid;
+      allow delete: if isAuth()
+        && resource.data.followerId == request.auth.uid;
+    }
+
+    // ── Notifications ────────────────────────────────────────────────────────
+    // Written by the follower into the *followee's* feed as part of a follow
+    // action (FollowContext txn.set). The read path belongs only to the owner.
+    //
+    // Create rules:
+    //   - fromUid must be the caller (prevents spoofing)
+    //   - type must be the literal 'follow' (only known notification type)
+    //   - fromDisplayName must be a non-empty string ≤ 100 chars
+    //   - fromPhotoURL may be a string or null
+    //   - createdAt and read (false) are required
+    //
+    // Update rules (markNotificationsRead):
+    //   - only the notification owner may flip read = true
+    //   - only the `read` field may change
+    match /notifications/{uid}/feed/{docId} {
+      allow read: if isOwner(uid);
+      allow create: if isAuth()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.type == 'follow'
+        && request.resource.data.fromDisplayName is string
+        && request.resource.data.fromDisplayName.size() > 0
+        && request.resource.data.fromDisplayName.size() <= 100
+        && request.resource.data.read == false
+        && request.resource.data.keys().hasOnly([
+             'type', 'fromUid', 'fromDisplayName', 'fromPhotoURL', 'createdAt', 'read'
+           ]);
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read == true;
+    }
+
+    // ── Movie Comments ───────────────────────────────────────────────────────
+    match /movieComments/{contentKey}/threads/{commentId} {
+      allow read: if isAuth();
+      // Create: authenticated; caller's uid must be stamped on the doc; text ≤ 2 000 chars
+      allow create: if isAuth()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000;
+      // Update: only the `likes` array may change (toggling a heart)
+      allow update: if isAuth()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
+      // Delete: only the comment owner may delete their own comment
+      allow delete: if isAuth() && resource.data.uid == request.auth.uid;
+    }
+
+    // ── Watch Parties ────────────────────────────────────────────────────────
+    match /watchParties/{partyId} {
+      allow read: if isAuth();
+      // Create: authenticated; caller becomes the host
+      allow create: if isAuth()
+        && request.resource.data.hostUid == request.auth.uid;
+      // Update/delete: host only (start party, end party, change movie)
+      allow update: if isAuth() && resource.data.hostUid == request.auth.uid;
+      allow delete: if isAuth() && resource.data.hostUid == request.auth.uid;
+
+      match /members/{uid} {
+        allow read: if isAuth();
+        allow write: if isOwner(uid);
+      }
+
+      match /chat/{docId} {
+        allow read: if isAuth();
+        allow create: if isAuth()
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if isAuth() && resource.data.uid == request.auth.uid;
+      }
+    }
+  }
+}

@@ -48,14 +48,18 @@ const playerScreen = (
 );
 
 // ── Social screens (shared across stacks) ────────────────────────────────────
+// ComponentType<any> because these screens use a loose `navigation: any` prop.
+// Full param-list types can be added per-screen in a future refactor.
+type AnyScreen = React.ComponentType<any>;
+
 const socialScreens = (
   <>
-    <Stack.Screen name="PublicProfile" component={PublicProfileScreen as any} options={{ title: 'Profile' }} />
-    <Stack.Screen name="FollowersScreen" component={FollowersScreen as any} options={{ title: 'Followers' }} />
-    <Stack.Screen name="FollowingScreen" component={FollowingScreen as any} options={{ title: 'Following' }} />
-    <Stack.Screen name="NotificationsScreen" component={NotificationsScreen as any} options={{ title: 'Activity' }} />
-    <Stack.Screen name="WatchParty" component={WatchPartyScreen as any} options={{ title: 'Watch Party', headerShown: false }} />
-    <Stack.Screen name="MovieList" component={MovieListScreen as any} options={{ title: 'Movies' }} />
+    <Stack.Screen name="PublicProfile" component={PublicProfileScreen as AnyScreen} options={{ title: 'Profile' }} />
+    <Stack.Screen name="FollowersScreen" component={FollowersScreen as AnyScreen} options={{ title: 'Followers' }} />
+    <Stack.Screen name="FollowingScreen" component={FollowingScreen as AnyScreen} options={{ title: 'Following' }} />
+    <Stack.Screen name="NotificationsScreen" component={NotificationsScreen as AnyScreen} options={{ title: 'Activity' }} />
+    <Stack.Screen name="WatchParty" component={WatchPartyScreen as AnyScreen} options={{ title: 'Watch Party', headerShown: false }} />
+    <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: 'Movies' }} />
   </>
 );
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { ND } from '../utils/animation';
 import {
   View,
   Text,
@@ -167,7 +168,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
       Animated.timing(controlsOpacity, {
         toValue: 0,
         duration: 400,
-        useNativeDriver: true,
+        useNativeDriver: ND,
       }).start(() => setControlsVisible(false));
     }, 4000);
   };
@@ -177,7 +178,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
     Animated.timing(controlsOpacity, {
       toValue: 1,
       duration: 200,
-      useNativeDriver: true,
+      useNativeDriver: ND,
     }).start();
     scheduleHideControls();
   };
@@ -188,7 +189,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
       Animated.timing(controlsOpacity, {
         toValue: 0,
         duration: 200,
-        useNativeDriver: true,
+        useNativeDriver: ND,
       }).start(() => setControlsVisible(false));
     } else {
       showControls();

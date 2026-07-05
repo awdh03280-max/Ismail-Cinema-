@@ -84,19 +84,29 @@ const FavoritesScreen = ({ navigation }: any) => {
                   <View style={{ flex: 1 }}>
                     <MovieCard
                       movie={{
-                        Title: item.title,
-                        Poster: item.poster,
                         imdbID: item.imdbID,
-                        imdbRating: 'N/A',
+                        Title: item.title,
                         Year: '',
+                        Poster: item.poster,
+                        Backdrop: '',
                         Plot: '',
+                        imdbRating: 'N/A',
+                        voteCount: 0,
                         Runtime: '',
                         Genre: '',
                         Director: '',
                         Cast: '',
                         Type: item.contentType === 'tv' ? 'series' : 'movie',
                         Released: '',
-                        Language: ''
+                        Language: '',
+                        Country: '',
+                        adult: false,
+                        contentType: item.contentType ?? 'movie',
+                        trailerKey: '',
+                        certification: '',
+                        productionCompanies: [],
+                        imdbExternalId: '',
+                        tagline: '',
                       }}
                       onPress={() => handleMoviePress(item)}
                       isFavorite={true}

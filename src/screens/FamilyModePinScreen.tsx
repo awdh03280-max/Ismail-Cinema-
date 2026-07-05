@@ -7,6 +7,7 @@
  *       'change'  → 3-step: old PIN → new PIN → confirm new PIN
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { ND } from '../utils/animation';
 import {
   View,
   Text,
@@ -69,10 +70,10 @@ const FamilyModePinScreen = ({ route, navigation }: any) => {
   const shake = useCallback(() => {
     setPin('');
     Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: ND }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: ND }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: ND }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: ND }),
     ]).start();
     if (Platform.OS !== 'web') Vibration.vibrate(200);
   }, [shakeAnim]);

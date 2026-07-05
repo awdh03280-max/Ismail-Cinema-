@@ -11,6 +11,7 @@
  *  - Premium Black + Gold + Red design
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ND } from '../utils/animation';
 import {
   View,
   Text,
@@ -212,8 +213,8 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
     if (party?.status === 'waiting') {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.04, duration: 900, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.04, duration: 900, useNativeDriver: ND }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: ND }),
         ])
       ).start();
     } else {

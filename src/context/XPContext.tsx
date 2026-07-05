@@ -38,6 +38,23 @@ import {
   xpLevelProgress,
 } from '../data/achievements';
 
+// ── Firestore data shape ──────────────────────────────────────────────────────
+// Mirrors what Firestore stores under users/{uid}. All fields optional because
+// the document may have been created before a field was added.
+interface FirestoreUserData {
+  xp?: number;
+  level?: number;
+  moviesWatched?: number;
+  seriesWatched?: number;
+  episodesWatched?: number;
+  commentsCount?: number;
+  animeWatched?: number;
+  animationWatched?: number;
+  loginStreak?: number;
+  lastLoginDate?: string;
+  achievements?: Record<string, { unlockedAt?: number; xpAwarded?: number }>;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const todayDateStr = (): string => {
@@ -110,7 +127,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           setIsLoading(false);
           return;
         }
-        const data = snap.data() as any;
+        const data = snap.data() as FirestoreUserData;
 
         const storedXp: number = data.xp ?? 0;
         const storedStats: UserStats = {
@@ -126,7 +143,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           lastLoginDate: data.lastLoginDate ?? '',
         };
 
-        const achievementsMap: Record<string, any> = data.achievements ?? {};
+        const achievementsMap = data.achievements ?? {};
         const ids = new Set<AchievementId>(
           Object.keys(achievementsMap) as AchievementId[]
         );
@@ -244,7 +261,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         await runTransaction(db, async (txn) => {
           const snap = await txn.get(userRef);
           if (!snap.exists()) return;
-          const data = snap.data() as any;
+          const data = snap.data() as FirestoreUserData;
 
           // Server-side idempotency check
           if (data.achievements?.[id]) return;
@@ -253,7 +270,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             unlockedAt: Date.now(),
             xpAwarded: achievement.xpReward,
           };
-          const updates: any = { [`achievements.${id}`]: record };
+          const updates: Record<string, unknown> = { [`achievements.${id}`]: record };
           if (achievement.xpReward > 0) {
             updates.xp = increment(achievement.xpReward);
             xpAfterTransaction = (data.xp ?? 0) + achievement.xpReward;
@@ -324,20 +341,30 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // ── Track content watched ──────────────────────────────────────────────────
   const trackContentWatched = useCallback(
     async ({
+      imdbID,
       contentType,
       genres = [],
       isNewEpisode = false,
     }: {
+      /** Optional dedup key — same title is only counted once per session. */
+      imdbID?: string;
       contentType: 'movie' | 'tv';
       genres?: string[];
       isNewEpisode?: boolean;
     }): Promise<void> => {
       if (!userRef || !user) return;
 
+      // Deduplicate per session: don't award XP for replaying the same title
+      // multiple times within one app session (e.g. repeated "Watch Now" taps).
+      if (imdbID) {
+        if (watchedThisSession.current.has(imdbID)) return;
+        watchedThisSession.current.add(imdbID);
+      }
+
       try {
         const snap = await getDoc(userRef);
         if (!snap.exists()) return;
-        const data = snap.data() as any;
+        const data = snap.data() as FirestoreUserData;
 
         const currentIds = new Set<AchievementId>(
           Object.keys(data.achievements ?? {}) as AchievementId[]
@@ -350,7 +377,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         const isAnimation = genresLower.some(g => g.includes('animation'));
 
         // Build increments
-        const increments: any = {};
+        const increments: Record<string, ReturnType<typeof increment>> = {};
         if (contentType === 'movie') {
           increments.moviesWatched = increment(1);
         } else {
@@ -367,7 +394,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
         // Refresh stats
         const freshSnap = await getDoc(userRef);
-        const freshData = freshSnap.data() as any;
+        const freshData = freshSnap.data() as FirestoreUserData;
         const freshStats: UserStats = {
           xp: freshData.xp ?? 0,
           level: xpToLevel(freshData.xp ?? 0),
@@ -441,7 +468,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       await updateDoc(userRef, { commentsCount: increment(1) });
 
       const snap = await getDoc(userRef);
-      const data = snap.data() as any;
+      const data = snap.data() as FirestoreUserData;
       const count: number = data.commentsCount ?? 0;
       const currentIds = new Set<AchievementId>(
         Object.keys(data.achievements ?? {}) as AchievementId[]

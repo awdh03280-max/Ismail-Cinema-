@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
+  DimensionValue,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -106,6 +107,17 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleMarkFinished = async () => {
+    if (!selectedMovie) return;
+    try {
+      await removeContinueWatching(selectedMovie.imdbID);
+      setMovies(prev => prev.filter(m => m.imdbID !== selectedMovie.imdbID));
+      setSelectedMovie(null);
+    } catch (error) {
+      console.error('Error marking as finished:', error);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -143,10 +155,29 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
                 >
                   <MovieCard
                     movie={{
-                      Title: item.title,
-                      Poster: item.poster,
                       imdbID: item.imdbID,
+                      Title: item.title,
+                      Year: '',
+                      Poster: item.poster,
+                      Backdrop: '',
+                      Plot: '',
                       imdbRating: 'N/A',
+                      voteCount: 0,
+                      Runtime: '',
+                      Genre: '',
+                      Director: '',
+                      Cast: '',
+                      Type: (item.contentType ?? 'movie') === 'tv' ? 'series' : 'movie',
+                      Released: '',
+                      Language: '',
+                      Country: '',
+                      adult: false,
+                      contentType: item.contentType ?? 'movie',
+                      trailerKey: '',
+                      certification: '',
+                      productionCompanies: [],
+                      imdbExternalId: '',
+                      tagline: '',
                     }}
                     onPress={() => handleMoviePress(item)}
                   />
@@ -155,7 +186,7 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
                 {/* Progress bar */}
                 <View style={styles.progressBar}>
                   <View
-                    style={[styles.progressFill, { width: `${item.progress}%` as any }]}
+                    style={[styles.progressFill, { width: `${Math.round(item.progress)}%` as DimensionValue }]}
                   />
                 </View>
 
@@ -220,6 +251,14 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
                 <Text style={styles.buttonText}>Save</Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={styles.finishedButton}
+              onPress={handleMarkFinished}
+            >
+              <Ionicons name="checkmark-circle-outline" size={16} color="#aaa" />
+              <Text style={styles.finishedText}>Mark as Finished</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -309,6 +348,15 @@ const styles = StyleSheet.create({
   cancelButton: { backgroundColor: '#333' },
   saveButton: { backgroundColor: '#e50914' },
   buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  finishedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+  },
+  finishedText: { color: '#aaa', fontSize: 13 },
 });
 
 export default ContinueWatchingScreen;

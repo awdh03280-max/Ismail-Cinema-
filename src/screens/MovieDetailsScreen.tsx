@@ -25,7 +25,10 @@ import {
   Dimensions,
   Linking,
   KeyboardAvoidingView,
+  DimensionValue,
+  Alert,
 } from 'react-native';
+import { ND } from '../utils/animation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -296,17 +299,17 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     if (!loading && movie) {
       Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(backdropScale, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(heroFade, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 700, delay: 200, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 700, delay: 200, useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 800, useNativeDriver: ND }),
+        Animated.timing(backdropScale, { toValue: 1, duration: 1400, useNativeDriver: ND }),
+        Animated.timing(heroFade, { toValue: 1, duration: 600, useNativeDriver: ND }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 700, delay: 200, useNativeDriver: ND }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 700, delay: 200, useNativeDriver: ND }),
       ]).start();
 
       Animated.loop(
         Animated.sequence([
-          Animated.timing(playPulse, { toValue: 1.04, duration: 1000, useNativeDriver: true }),
-          Animated.timing(playPulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
+          Animated.timing(playPulse, { toValue: 1.04, duration: 1000, useNativeDriver: ND }),
+          Animated.timing(playPulse, { toValue: 1, duration: 1000, useNativeDriver: ND }),
         ])
       ).start();
     }
@@ -418,11 +421,12 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       progress: savedProgress,
       watchedAt: Date.now(),
     });
-    // Track for achievements (fire-and-forget, non-blocking)
+    // Track for achievements — pass imdbID so the same title is only counted
+    // once per session even if the user taps "Watch Now" multiple times.
     const genres = movie.Genre
       ? movie.Genre.split(',').map((g: string) => g.trim())
       : [];
-    trackContentWatched({ contentType, genres }).catch(() => {});
+    trackContentWatched({ imdbID: movieId, contentType, genres }).catch(() => {});
     navigation.navigate('Player', {
       movieId,
       title: movie.Title,
@@ -451,6 +455,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       trackComment().catch(() => {});
     } catch (err) {
       console.error('[MovieDetails] post comment error:', err);
+      Alert.alert('Could not post comment', 'Please check your connection and try again.');
     } finally {
       setPostingComment(false);
     }
@@ -649,7 +654,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
             <View style={styles.progressWrap}>
               <View style={styles.progressRow}>
                 <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${savedProgress}%` as any }]} />
+                  <View style={[styles.progressFill, { width: `${savedProgress}%` as DimensionValue }]} />
                 </View>
                 <Text style={styles.progressLabel}>{Math.round(savedProgress)}%</Text>
               </View>
@@ -1387,8 +1392,10 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     backgroundColor: colors.surfaceElevated,
-    shadowOpacity: 0,
-    elevation: 0,
+    ...Platform.select({
+      web: { boxShadow: 'none' } as object,
+      default: { shadowOpacity: 0, elevation: 0 },
+    }),
   },
   loginPrompt: {
     flexDirection: 'row',
