@@ -3,16 +3,22 @@ import axios from 'axios';
 const API_KEY = 'd23add33a918be4eec47fa9ebe6fb003';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
+const BACKDROP_URL = 'https://image.tmdb.org/t/p/w1280';
 
 const api = axios.create({
   baseURL: BASE_URL,
 });
+
+/** Content categories exposed as browsable navigation sections. */
+export type ContentCategory = 'movies' | 'tv' | 'anime' | 'animation';
 
 export interface Movie {
   imdbID: string;
   Title: string;
   Year: string;
   Poster: string;
+  /** Wide backdrop image — used for hero banners. */
+  Backdrop: string;
   Plot: string;
   imdbRating: string;
   Runtime: string;
@@ -24,18 +30,23 @@ export interface Movie {
   Language: string;
   /** TMDB adult flag — true for explicitly adult content. */
   adult: boolean;
+  /** 'movie' | 'tv' — drives which TMDB endpoint to call for details. */
+  contentType: 'movie' | 'tv';
 }
 
-function mapMovie(movie: any): Movie {
+function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
   return {
     imdbID: movie.id.toString(),
     Title: movie.title || movie.name || '',
-    Year: movie.release_date
-      ? movie.release_date.substring(0, 4)
+    Year: (movie.release_date || movie.first_air_date)
+      ? (movie.release_date || movie.first_air_date).substring(0, 4)
       : '',
     Poster: movie.poster_path
       ? `${IMAGE_URL}${movie.poster_path}`
       : '',
+    Backdrop: movie.backdrop_path
+      ? `${BACKDROP_URL}${movie.backdrop_path}`
+      : (movie.poster_path ? `${BACKDROP_URL}${movie.poster_path}` : ''),
     Plot: movie.overview || '',
     imdbRating: movie.vote_average
       ? movie.vote_average.toFixed(1)
@@ -44,10 +55,11 @@ function mapMovie(movie: any): Movie {
     Genre: '',
     Director: '',
     Cast: '',
-    Type: 'movie',
-    Released: movie.release_date || '',
+    Type: contentType === 'tv' ? 'series' : 'movie',
+    Released: movie.release_date || movie.first_air_date || '',
     Language: movie.original_language || '',
     adult: movie.adult === true,
+    contentType,
   };
 }
 
@@ -60,7 +72,7 @@ export const searchMovies = async (query: string): Promise<Movie[]> => {
     },
   });
 
-  return res.data.results.map(mapMovie);
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
 };
 
 export const getPopularMovies = async (): Promise<Movie[]> => {
@@ -70,7 +82,68 @@ export const getPopularMovies = async (): Promise<Movie[]> => {
     },
   });
 
-  return res.data.results.map(mapMovie);
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+export const getTopRatedMovies = async (): Promise<Movie[]> => {
+  const res = await api.get('/movie/top_rated', {
+    params: { api_key: API_KEY },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+export const getUpcomingMovies = async (): Promise<Movie[]> => {
+  const res = await api.get('/movie/upcoming', {
+    params: { api_key: API_KEY },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+export const getPopularTVShows = async (): Promise<Movie[]> => {
+  const res = await api.get('/tv/popular', {
+    params: { api_key: API_KEY },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'tv'));
+};
+
+export const getTopRatedTVShows = async (): Promise<Movie[]> => {
+  const res = await api.get('/tv/top_rated', {
+    params: { api_key: API_KEY },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'tv'));
+};
+
+/** Japanese-language animated TV — the closest TMDB approximation to "anime". */
+export const getAnime = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/tv', {
+    params: {
+      api_key: API_KEY,
+      with_genres: 16,
+      with_original_language: 'ja',
+      sort_by: 'popularity.desc',
+    },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'tv'));
+};
+
+/** Animated movies (family/studio animation) — Animation genre, excluding anime titles. */
+export const getAnimationMovies = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_genres: 16,
+      sort_by: 'popularity.desc',
+    },
+  });
+
+  return res.data.results
+    .filter((m: any) => m.original_language !== 'ja')
+    .map((m: any) => mapMovie(m, 'movie'));
 };
 
 export const getMovieDetails = async (id: string): Promise<Movie> => {
@@ -81,7 +154,7 @@ export const getMovieDetails = async (id: string): Promise<Movie> => {
     },
   });
 
-  const movie = mapMovie(res.data);
+  const movie = mapMovie(res.data, 'movie');
 
   movie.Runtime = res.data.runtime
     ? `${res.data.runtime} min`
@@ -103,4 +176,149 @@ export const getMovieDetails = async (id: string): Promise<Movie> => {
       .join(', ') || '';
 
   return movie;
+};
+
+export const getTVShowDetails = async (id: string): Promise<Movie> => {
+  const res = await api.get(`/tv/${id}`, {
+    params: {
+      api_key: API_KEY,
+      append_to_response: 'credits',
+    },
+  });
+
+  const show = mapMovie(res.data, 'tv');
+
+  show.Runtime = res.data.episode_run_time?.[0]
+    ? `${res.data.episode_run_time[0]} min`
+    : '';
+
+  show.Genre = res.data.genres
+    ?.map((g: any) => g.name)
+    .join(', ');
+
+  show.Director =
+    res.data.credits?.crew
+      ?.find((c: any) => c.job === 'Director')
+      ?.name ||
+    res.data.created_by?.[0]?.name ||
+    '';
+
+  show.Cast =
+    res.data.credits?.cast
+      ?.slice(0, 5)
+      ?.map((c: any) => c.name)
+      .join(', ') || '';
+
+  return show;
+};
+
+/** Fetch details for either a movie or a TV/anime item based on contentType. */
+export const getDetails = async (
+  id: string,
+  contentType: 'movie' | 'tv' = 'movie'
+): Promise<Movie> => {
+  return contentType === 'tv' ? getTVShowDetails(id) : getMovieDetails(id);
+};
+
+/** Cast/crew member returned by TMDB credits endpoints. */
+export interface CastMember {
+  id: number;
+  name: string;
+  character?: string;
+  job?: string;
+  profilePath: string | null;
+}
+
+export interface CreditsResult {
+  cast: CastMember[];
+  crew: CastMember[];
+  director: string;
+}
+
+export const getCredits = async (
+  id: string,
+  contentType: 'movie' | 'tv' = 'movie'
+): Promise<CreditsResult> => {
+  const res = await api.get(`/${contentType}/${id}/credits`, {
+    params: { api_key: API_KEY },
+  });
+
+  const cast: CastMember[] = (res.data.cast || [])
+    .slice(0, 12)
+    .map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      character: c.character,
+      profilePath: c.profile_path ? `${IMAGE_URL}${c.profile_path}` : null,
+    }));
+
+  const crew: CastMember[] = (res.data.crew || [])
+    .slice(0, 8)
+    .map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      job: c.job,
+      profilePath: c.profile_path ? `${IMAGE_URL}${c.profile_path}` : null,
+    }));
+
+  const director =
+    (res.data.crew || []).find((c: any) => c.job === 'Director')?.name || '';
+
+  return { cast, crew, director };
+};
+
+/** Content feed for a given navigation category — hero + carousels. */
+export interface CategoryFeed {
+  hero: Movie[];
+  sections: { title: string; movies: Movie[] }[];
+}
+
+export const getCategoryFeed = async (
+  category: ContentCategory
+): Promise<CategoryFeed> => {
+  switch (category) {
+    case 'tv': {
+      const [popular, topRated] = await Promise.all([
+        getPopularTVShows(),
+        getTopRatedTVShows(),
+      ]);
+      return {
+        hero: popular.slice(0, 5),
+        sections: [
+          { title: 'Popular TV Shows', movies: popular },
+          { title: 'Top Rated TV Shows', movies: topRated },
+        ],
+      };
+    }
+    case 'anime': {
+      const anime = await getAnime();
+      return {
+        hero: anime.slice(0, 5),
+        sections: [{ title: 'Trending Anime', movies: anime }],
+      };
+    }
+    case 'animation': {
+      const animation = await getAnimationMovies();
+      return {
+        hero: animation.slice(0, 5),
+        sections: [{ title: 'Animated Movies', movies: animation }],
+      };
+    }
+    case 'movies':
+    default: {
+      const [popular, topRated, upcoming] = await Promise.all([
+        getPopularMovies(),
+        getTopRatedMovies(),
+        getUpcomingMovies(),
+      ]);
+      return {
+        hero: popular.slice(0, 5),
+        sections: [
+          { title: 'Popular Movies', movies: popular },
+          { title: 'Top Rated', movies: topRated },
+          { title: 'Coming Soon', movies: upcoming },
+        ],
+      };
+    }
+  }
 };

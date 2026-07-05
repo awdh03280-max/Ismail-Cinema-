@@ -8,10 +8,11 @@ import {
   Image,
   StatusBar,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getMovieDetails, Movie } from '../api/tmdb';
+import { getDetails, Movie } from '../api/tmdb';
 import {
   addToFavorites,
   removeFromFavorites,
@@ -19,6 +20,7 @@ import {
   addToContinueWatching,
   getPlaybackPosition,
 } from '../storage/storage';
+import { colors } from '../theme/colors';
 
 /** Parse "120 min" → 120. Returns 0 if unreadable. */
 const parseRuntime = (runtime: string): number => {
@@ -27,7 +29,7 @@ const parseRuntime = (runtime: string): number => {
 };
 
 const MovieDetailsScreen = ({ route, navigation }: any) => {
-  const { movieId } = route.params;
+  const { movieId, contentType } = route.params;
 
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,17 +38,18 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
-    StatusBar.setBackgroundColor('#0a0e27');
+    StatusBar.setBackgroundColor('#000000');
   }, []);
 
   useEffect(() => {
     loadMovieDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movieId]);
 
   const loadMovieDetails = async () => {
     try {
       setLoading(true);
-      const details = await getMovieDetails(movieId);
+      const details = await getDetails(movieId, contentType);
       setMovie(details);
       const fav = await isFavorite(movieId);
       setIsFav(fav);
@@ -101,7 +104,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#e50914" />
+        <ActivityIndicator size="large" color={colors.red} />
       </View>
     );
   }
@@ -118,44 +121,48 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#0a0e27', '#1a1a2e']}
-        style={StyleSheet.absoluteFill}
-      />
-
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color="#fff" />
-          </TouchableOpacity>
+        <View style={styles.heroWrap}>
+          <Image source={{ uri: movie.Backdrop || movie.Poster }} style={styles.poster} />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.2)', 'transparent', 'rgba(0,0,0,0.7)', '#000000']}
+            locations={[0, 0.3, 0.7, 1]}
+            style={StyleSheet.absoluteFill}
+          />
 
-          <TouchableOpacity
-            onPress={handleToggleFavorite}
-            style={styles.favoriteButton}>
-            <Ionicons
-              name={isFav ? 'heart' : 'heart-outline'}
-              size={24}
-              color={isFav ? '#e50914' : '#fff'}
-            />
-          </TouchableOpacity>
-        </View>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.iconButton}>
+              <Ionicons name="chevron-back" size={26} color="#fff" />
+            </TouchableOpacity>
 
-        <Image source={{ uri: movie.Poster }} style={styles.poster} />
-
-        <View style={styles.content}>
-          <Text style={styles.title}>{movie.Title}</Text>
-
-          <View style={styles.ratingRow}>
-            <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={16} color="#e50914" />
-              <Text style={styles.rating}>{movie.imdbRating}</Text>
-            </View>
-            <Text style={styles.year}>{movie.Year}</Text>
-            <Text style={styles.type}>{movie.Type}</Text>
+            <TouchableOpacity
+              onPress={handleToggleFavorite}
+              style={styles.iconButton}>
+              <Ionicons
+                name={isFav ? 'heart' : 'heart-outline'}
+                size={22}
+                color={isFav ? colors.red : '#fff'}
+              />
+            </TouchableOpacity>
           </View>
 
+          <View style={styles.heroContent}>
+            <Text style={styles.title}>{movie.Title}</Text>
+
+            <View style={styles.ratingRow}>
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={14} color={colors.gold} />
+                <Text style={styles.rating}>{movie.imdbRating}</Text>
+              </View>
+              {!!movie.Year && <Text style={styles.year}>{movie.Year}</Text>}
+              {!!movie.Type && <Text style={styles.type}>{movie.Type.toUpperCase()}</Text>}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.content}>
           {/* Progress bar shown if user has started watching */}
           {hasProgress && (
             <View style={styles.progressContainer}>
@@ -168,9 +175,9 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
             </View>
           )}
 
-          {/* Watch / Resume button */}
-          <TouchableOpacity style={styles.playButton} onPress={handleWatchNow}>
-            <Ionicons name="play" size={20} color="#fff" />
+          {/* Huge Watch / Resume button — the primary action on this screen */}
+          <TouchableOpacity style={styles.playButton} onPress={handleWatchNow} activeOpacity={0.85}>
+            <Ionicons name="play" size={26} color="#fff" />
             <Text style={styles.playButtonText}>
               {hasProgress ? 'Resume' : 'Watch Now'}
             </Text>
@@ -182,34 +189,64 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
           </TouchableOpacity>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Plot</Text>
+            <Text style={styles.sectionTitle}>Overview</Text>
             <Text style={styles.sectionContent}>{movie.Plot}</Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Director</Text>
-            <Text style={styles.sectionContent}>{movie.Director}</Text>
+          <View style={styles.metaGrid}>
+            {!!movie.Genre && (
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Genre</Text>
+                <Text style={styles.metaValue}>{movie.Genre}</Text>
+              </View>
+            )}
+            {!!movie.Runtime && (
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Runtime</Text>
+                <Text style={styles.metaValue}>{movie.Runtime}</Text>
+              </View>
+            )}
+            {!!movie.Language && (
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Language</Text>
+                <Text style={styles.metaValue}>{movie.Language.toUpperCase()}</Text>
+              </View>
+            )}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Cast</Text>
-            <Text style={styles.sectionContent}>{movie.Cast}</Text>
+          {!!movie.Director && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Director</Text>
+              <Text style={styles.sectionContent}>{movie.Director}</Text>
+            </View>
+          )}
+
+          {!!movie.Cast && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Cast</Text>
+              <Text style={styles.sectionContent}>{movie.Cast}</Text>
+            </View>
+          )}
+
+          {/* Reserved space for future Cast/Director/Crew detail cards, and
+              Comments — intentionally left as placeholders, not implemented. */}
+          <View style={styles.reservedSection}>
+            <View style={styles.reservedHeader}>
+              <Ionicons name="people-outline" size={18} color={colors.textMuted} />
+              <Text style={styles.reservedTitle}>Full Cast & Crew</Text>
+            </View>
+            <Text style={styles.reservedNote}>Coming soon</Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Genre</Text>
-            <Text style={styles.sectionContent}>{movie.Genre}</Text>
+          <View style={styles.reservedSection}>
+            <View style={styles.reservedHeader}>
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.textMuted} />
+              <Text style={styles.reservedTitle}>Comments</Text>
+            </View>
+            <Text style={styles.reservedNote}>Coming soon</Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Language</Text>
-            <Text style={styles.sectionContent}>{movie.Language}</Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Runtime</Text>
-            <Text style={styles.sectionContent}>{movie.Runtime}</Text>
-          </View>
+          <View style={{ height: 24 }} />
         </View>
       </ScrollView>
     </View>
@@ -217,81 +254,108 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27' },
+  container: { flex: 1, backgroundColor: colors.black },
+  heroWrap: {
+    width: '100%',
+    height: 460,
+  },
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingTop: 12,
-    paddingBottom: 8,
   },
-  backButton: {
+  iconButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  favoriteButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   poster: {
     width: '100%',
-    height: 300,
+    height: '100%',
+  },
+  heroContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 18,
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 18,
+    marginTop: -8,
   },
   title: {
     color: '#fff',
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 30,
+    fontWeight: '900',
+    marginBottom: 10,
+    letterSpacing: 0.3,
+    ...Platform.select({
+      web: { textShadow: '0 2px 14px rgba(0,0,0,0.85)' } as object,
+      default: {
+        textShadowColor: 'rgba(0,0,0,0.85)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 14,
+      },
+    }),
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 12,
   },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(229,9,20,0.2)',
+    backgroundColor: 'rgba(212,175,55,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.4)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
-    marginRight: 12,
+    gap: 4,
   },
   rating: {
-    color: '#e50914',
-    marginLeft: 4,
+    color: colors.gold,
+    fontWeight: '700',
+    fontSize: 13,
   },
   year: {
-    color: '#999',
-    marginRight: 10,
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   type: {
-    color: '#999',
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   progressContainer: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   progressTrack: {
-    height: 3,
-    backgroundColor: '#333',
+    height: 4,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 2,
     overflow: 'hidden',
     marginBottom: 6,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#e50914',
+    backgroundColor: colors.red,
     borderRadius: 2,
   },
   progressLabel: {
-    color: '#e50914',
+    color: colors.red,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -299,40 +363,106 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e50914',
-    paddingVertical: 14,
-    borderRadius: 8,
-    marginBottom: 24,
-    gap: 8,
+    backgroundColor: colors.red,
+    paddingVertical: 18,
+    borderRadius: 12,
+    marginBottom: 28,
+    gap: 10,
+    ...Platform.select({
+      web: { boxShadow: '0 8px 26px rgba(229,9,20,0.55)' } as object,
+      default: {
+        shadowColor: colors.red,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.6,
+        shadowRadius: 14,
+        elevation: 8,
+      },
+    }),
   },
   playButtonText: {
     color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+    fontWeight: '800',
+    fontSize: 19,
+    letterSpacing: 0.3,
   },
   resumeBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    marginLeft: 4,
   },
   resumeBadgeText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
   },
+  metaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 22,
+  },
+  metaItem: {
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: '30%',
+  },
+  metaLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  metaValue: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   section: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   sectionTitle: {
-    color: '#fff',
-    fontWeight: '700',
+    color: colors.gold,
+    fontWeight: '800',
     fontSize: 16,
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: 0.3,
   },
   sectionContent: {
-    color: '#ccc',
+    color: colors.textSecondary,
     lineHeight: 22,
+    fontSize: 14,
+  },
+  reservedSection: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 14,
+  },
+  reservedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  reservedTitle: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  reservedNote: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginLeft: 26,
   },
   errorText: {
     color: '#fff',

@@ -1,15 +1,16 @@
 /**
  * SplashScreen — cinematic brand intro for Ismail Cinema.
  *
- * Animation sequence (total ≈ 2.53 s):
- *   0 ms   – pure black screen
- *   80 ms  – red glow burst expands from centre
- *   250 ms – ambient halo settles behind logo
- *   300 ms – "ISMAIL" zooms in (scale 0.3 → 1.05 → 1.0) with red text glow
- *   680 ms – divider line fades in
- *   680 ms – "CINEMA" drifts up + fades in
- *   1 980 ms – exit: black overlay fades in (550 ms)
- *   2 530 ms – onComplete() fires
+ * Animation sequence (total = 3.0 s):
+ *   0 ms    – pure black screen
+ *   80 ms   – red glow burst expands from centre
+ *   200 ms  – gold lighting sweep rakes across the screen
+ *   250 ms  – ambient halo settles behind logo
+ *   300 ms  – "ISMAIL" zooms in (scale 0.3 → 1.08 → 1.0) with red + gold glow
+ *   680 ms  – gold divider line fades in
+ *   680 ms  – "CINEMA" drifts up + fades in (gold letter-spaced)
+ *   2 400 ms – exit: black overlay fades in (600 ms)
+ *   3 000 ms – onComplete() fires
  *
  * All transform/opacity animations use useNativeDriver: true.
  * On Expo web, React Native's JS fallback handles them transparently.
@@ -140,6 +141,10 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const haloScale   = useRef(new Animated.Value(0.2)).current;
   const haloOpacity = useRef(new Animated.Value(0)).current;
 
+  // Gold lighting sweep: diagonal beam that rakes across the screen once
+  const sweepX       = useRef(new Animated.Value(-1)).current;
+  const sweepOpacity = useRef(new Animated.Value(0)).current;
+
   // "ISMAIL" logo: zoom-in with micro-overshoot
   const logoScale   = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -187,35 +192,42 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       Animated.timing(haloScale,   { toValue: 1.0,  duration: 750, delay: 240, easing: ease, ...ND }),
     ]).start();
 
-    // ── 3. Logo zoom-in with slight spring overshoot ──────────────────────────
+    // ── 3. Gold lighting sweep — a single diagonal beam of gold light ────────
+    Animated.sequence([
+      Animated.timing(sweepOpacity, { toValue: 0.55, duration: 200, delay: 200, ...ND }),
+      Animated.timing(sweepX,       { toValue: 2,    duration: 900, delay: 0,   easing: Easing.out(Easing.cubic), ...ND }),
+    ]).start();
+    Animated.timing(sweepOpacity, { toValue: 0, duration: 400, delay: 900, ...ND }).start();
+
+    // ── 4. Logo zoom-in with slight spring overshoot ──────────────────────────
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(logoOpacity, { toValue: 1,    duration: 360, delay: 300, easing: ease, ...ND }),
-        Animated.timing(logoScale,   { toValue: 1.06, duration: 480, delay: 300, easing: ease, ...ND }),
+        Animated.timing(logoOpacity, { toValue: 1,    duration: 400, delay: 340, easing: ease, ...ND }),
+        Animated.timing(logoScale,   { toValue: 1.08, duration: 540, delay: 340, easing: ease, ...ND }),
       ]),
-      Animated.timing(logoScale,     { toValue: 1.0,  duration: 200, easing: Easing.inOut(Easing.quad), ...ND }),
+      Animated.timing(logoScale,     { toValue: 1.0,  duration: 220, easing: Easing.inOut(Easing.quad), ...ND }),
     ]).start();
 
-    // ── 4. Divider line ───────────────────────────────────────────────────────
-    Animated.timing(divOpacity, { toValue: 0.75, duration: 380, delay: 680, easing: ease, ...ND }).start();
+    // ── 5. Gold divider line ───────────────────────────────────────────────────
+    Animated.timing(divOpacity, { toValue: 0.9, duration: 420, delay: 780, easing: ease, ...ND }).start();
 
-    // ── 5. "CINEMA" subtitle drift-up ─────────────────────────────────────────
+    // ── 6. "CINEMA" subtitle drift-up ─────────────────────────────────────────
     Animated.parallel([
-      Animated.timing(subOpacity, { toValue: 1,  duration: 420, delay: 700, easing: ease, ...ND }),
-      Animated.timing(subY,       { toValue: 0,  duration: 420, delay: 700, easing: ease, ...ND }),
+      Animated.timing(subOpacity, { toValue: 1,  duration: 460, delay: 800, easing: ease, ...ND }),
+      Animated.timing(subY,       { toValue: 0,  duration: 460, delay: 800, easing: ease, ...ND }),
     ]).start();
 
-    // ── 6. Exit: fade to black, then hand off ─────────────────────────────────
+    // ── 7. Exit: fade to black, then hand off ─────────────────────────────────
     const exitTimer = setTimeout(() => {
       Animated.timing(exitOpacity, {
         toValue: 1,
-        duration: 550,
+        duration: 600,
         easing: Easing.in(Easing.quad),
         ...ND,
       }).start();
-    }, 1980);
+    }, 2400);
 
-    const completeTimer = setTimeout(onComplete, 2530);
+    const completeTimer = setTimeout(onComplete, 3000);
 
     return () => {
       mounted = false;
@@ -247,6 +259,21 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         ]}
       />
 
+      {/* ── Gold lighting sweep — diagonal beam raking across the screen ── */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.sweep,
+          {
+            opacity: sweepOpacity,
+            transform: [
+              { translateX: sweepX.interpolate({ inputRange: [-1, 2], outputRange: [-W, W * 1.6] }) },
+              { rotate: '18deg' },
+            ],
+          },
+        ]}
+      />
+
       {/* ── Vignette gradients (edges darker, adds cinematic depth) ── */}
       {/* No touch targets on splash — pointerEvents is unnecessary here */}
       <LinearGradient
@@ -269,15 +296,15 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           { opacity: logoOpacity, transform: [{ scale: logoScale }] },
         ]}
       >
-        {/* "ISMAIL" — bold, red, glowing */}
+        {/* "ISMAIL" — bold, red, glowing, gold-lit edge */}
         <Text style={styles.logoText} numberOfLines={1} adjustsFontSizeToFit>
           ISMAIL
         </Text>
 
-        {/* Divider */}
+        {/* Divider — gold */}
         <Animated.View style={[styles.divider, { opacity: divOpacity }]} />
 
-        {/* "CINEMA" — light, white, letter-spaced */}
+        {/* "CINEMA" — gold, letter-spaced */}
         <Animated.View
           style={{ opacity: subOpacity, transform: [{ translateY: subY }] }}
         >
@@ -343,6 +370,25 @@ const styles = StyleSheet.create({
     }),
   },
 
+  // Gold lighting sweep beam
+  sweep: {
+    position: 'absolute',
+    top: -H * 0.5,
+    left: 0,
+    width: W * 0.28,
+    height: H * 2,
+    backgroundColor: 'transparent',
+    ...Platform.select({
+      web: {
+        backgroundImage:
+          'linear-gradient(90deg, transparent, rgba(212,175,55,0.65), rgba(244,214,117,0.85), rgba(212,175,55,0.65), transparent)',
+      } as object,
+      default: {
+        backgroundColor: 'rgba(212, 175, 55, 0.45)',
+      },
+    }),
+  },
+
   // Logo
   logoGroup: {
     alignItems: 'center',
@@ -355,7 +401,7 @@ const styles = StyleSheet.create({
     color: '#e50914',
     letterSpacing: Math.max(4, W * 0.011),
     ...Platform.select({
-      web: { textShadow: '0 0 28px rgba(229, 9, 20, 0.65)' } as object,
+      web: { textShadow: '0 0 28px rgba(229, 9, 20, 0.65), 0 0 46px rgba(212, 175, 55, 0.3)' } as object,
       default: {
         textShadowColor: 'rgba(229, 9, 20, 0.65)',
         textShadowOffset: { width: 0, height: 0 },
@@ -366,12 +412,12 @@ const styles = StyleSheet.create({
   divider: {
     width: DIV_W,
     height: 1.5,
-    backgroundColor: '#e50914',
+    backgroundColor: '#d4af37',
     marginVertical: 14,
     ...Platform.select({
-      web: { boxShadow: '0 0 10px 3px rgba(229, 9, 20, 0.7)' } as object,
+      web: { boxShadow: '0 0 12px 3px rgba(212, 175, 55, 0.8)' } as object,
       default: {
-        shadowColor: '#e50914',
+        shadowColor: '#d4af37',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.9,
         shadowRadius: 10,
@@ -381,9 +427,17 @@ const styles = StyleSheet.create({
   subText: {
     fontSize: SUB_FS,
     fontWeight: '300',
-    color: '#ffffff',
+    color: '#f4d675',
     letterSpacing: Math.max(8, W * 0.017),
-    opacity: 0.92,
+    opacity: 0.95,
+    ...Platform.select({
+      web: { textShadow: '0 0 16px rgba(212, 175, 55, 0.5)' } as object,
+      default: {
+        textShadowColor: 'rgba(212, 175, 55, 0.5)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 16,
+      },
+    }),
   },
 
   // Full-screen black exit overlay

@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, StatusBar, Text } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { searchMovies, Movie } from '../api/tmdb';
 import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 import { addToFavorites, removeFromFavorites, isFavorite } from '../storage/storage';
+import { colors } from '../theme/colors';
 
 const MovieListScreen = ({ route, navigation }: any) => {
   const { category } = route.params;
@@ -16,7 +15,7 @@ const MovieListScreen = ({ route, navigation }: any) => {
 
   React.useEffect(() => {
     StatusBar.setBarStyle('light-content');
-    StatusBar.setBackgroundColor('#0a0e27');
+    StatusBar.setBackgroundColor('#000000');
   }, []);
 
   useEffect(() => {
@@ -80,8 +79,8 @@ const MovieListScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0a0e27', '#1a1a2e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <View style={styles.header}>
+        <View style={styles.headerAccent} />
         <Text style={styles.title}>{category.charAt(0).toUpperCase() + category.slice(1)} Movies</Text>
       </View>
       {movies.length === 0 ? (
@@ -114,9 +113,22 @@ const MovieListScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27' },
-  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
-  title: { fontSize: 24, fontWeight: '700', color: '#fff' },
+  container: { flex: 1, backgroundColor: colors.black },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  headerAccent: {
+    width: 4,
+    height: 22,
+    borderRadius: 2,
+    backgroundColor: colors.gold,
+  },
+  title: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
   columnWrapper: { justifyContent: 'space-around', paddingHorizontal: 8, marginBottom: 8 },
   listContent: { paddingTop: 12, paddingBottom: 20 },
   movieContainer: { width: '48%' },

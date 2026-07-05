@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,22 +7,25 @@ import {
   RefreshControl,
   Text,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { searchMovies, getPopularMovies, Movie } from '../api/tmdb';
+import { getCategoryFeed, ContentCategory, Movie } from '../api/tmdb';
 import MovieCard from '../components/MovieCard';
 import SectionTitle from '../components/SectionTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
+import HeroBanner from '../components/HeroBanner';
+import CategoryTabs from '../components/CategoryTabs';
 import {
   addToFavorites,
   removeFromFavorites,
   isFavorite,
 } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
+import { colors } from '../theme/colors';
 
 const HomeScreen = ({ navigation }: any) => {
-  const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
-  const [actionMovies, setActionMovies] = useState<Movie[]>([]);
+  const [category, setCategory] = useState<ContentCategory>('movies');
+  const [hero, setHero] = useState<Movie[]>([]);
+  const [sections, setSections] = useState<{ title: string; movies: Movie[] }[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -31,40 +34,42 @@ const HomeScreen = ({ navigation }: any) => {
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
-    StatusBar.setBackgroundColor('#0a0e27');
-    loadMovies();
+    StatusBar.setBackgroundColor('#000000');
   }, []);
 
-  // Re-filter when family mode state changes (enable/disable/lock/unlock)
-  useEffect(() => {
-    loadMovies();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEnabled, isUnlocked]);
-
-  const loadMovies = async () => {
+  const loadMovies = useCallback(async () => {
     try {
       setLoading(true);
-      const [popular, action] = await Promise.all([
-        getPopularMovies(),
-        searchMovies('Action'),
-      ]);
+      const feed = await getCategoryFeed(category);
 
-      setPopularMovies(filterMovies(popular));
-      setActionMovies(filterMovies(action));
+      const filteredHero = filterMovies(feed.hero);
+      const filteredSections = feed.sections.map(section => ({
+        title: section.title,
+        movies: filterMovies(section.movies),
+      }));
 
+      setHero(filteredHero);
+      setSections(filteredSections);
+
+      const allMovies = [filteredHero, ...filteredSections.map(s => s.movies)].flat();
       const favSet = new Set<string>();
-      [...popular, ...action].forEach(async movie => {
+      for (const movie of allMovies) {
         if (await isFavorite(movie.imdbID)) {
           favSet.add(movie.imdbID);
-          setFavorites(new Set(favSet));
         }
-      });
+      }
+      setFavorites(favSet);
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, isEnabled, isUnlocked]);
+
+  useEffect(() => {
+    loadMovies();
+  }, [loadMovies]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -73,7 +78,7 @@ const HomeScreen = ({ navigation }: any) => {
   };
 
   const handleMoviePress = (movie: Movie) => {
-    navigation.navigate('MovieDetails', { movieId: movie.imdbID });
+    navigation.navigate('MovieDetails', { movieId: movie.imdbID, contentType: movie.contentType });
   };
 
   const handleFavoritePress = async (movie: Movie) => {
@@ -99,30 +104,23 @@ const HomeScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#0a0e27', '#1a1a2e']}
-        style={StyleSheet.absoluteFill}
-      />
-
       <ScrollView
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#e50914"
+            tintColor={colors.gold}
           />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logo}>
-              <View style={styles.logoPlay} />
-            </View>
+        {/* Header overlaid on hero */}
+        <View style={styles.headerOverlay}>
+          <View style={styles.logoRow}>
+            <Text style={styles.logoText}>ISMAIL</Text>
+            <Text style={styles.logoAccent}>CINEMA</Text>
           </View>
 
-          {/* Family Mode indicator */}
           {isEnabled && (
             <View style={[styles.fmBadge, isUnlocked && styles.fmBadgeUnlocked]}>
               <Ionicons
@@ -137,74 +135,71 @@ const HomeScreen = ({ navigation }: any) => {
           )}
         </View>
 
-        <SectionTitle
-          title="Popular Movies"
-          onSeeAll={() => navigation.navigate('MovieList', { category: 'popular' })}
+        <HeroBanner
+          movies={hero}
+          onPlay={handleMoviePress}
+          onMoreInfo={handleMoviePress}
         />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.carousel}>
-            {popularMovies.map(movie => (
-              <MovieCard
-                key={movie.imdbID}
-                movie={movie}
-                onPress={() => handleMoviePress(movie)}
-                onFavoritePress={() => handleFavoritePress(movie)}
-                isFavorite={favorites.has(movie.imdbID)}
-              />
-            ))}
-          </View>
-        </ScrollView>
 
-        <SectionTitle
-          title="Action Movies"
-          onSeeAll={() => navigation.navigate('MovieList', { category: 'action' })}
-        />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.carousel}>
-            {actionMovies.map(movie => (
-              <MovieCard
-                key={movie.imdbID}
-                movie={movie}
-                onPress={() => handleMoviePress(movie)}
-                onFavoritePress={() => handleFavoritePress(movie)}
-                isFavorite={favorites.has(movie.imdbID)}
-              />
-            ))}
+        <View style={styles.tabsWrapper}>
+          <CategoryTabs active={category} onChange={setCategory} />
+        </View>
+
+        {sections.map(section => (
+          <View key={section.title}>
+            <SectionTitle title={section.title} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.carousel}>
+                {section.movies.map(movie => (
+                  <MovieCard
+                    key={movie.imdbID}
+                    movie={movie}
+                    onPress={() => handleMoviePress(movie)}
+                    onFavoritePress={() => handleFavoritePress(movie)}
+                    isFavorite={favorites.has(movie.imdbID)}
+                  />
+                ))}
+              </View>
+            </ScrollView>
           </View>
-        </ScrollView>
+        ))}
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27' },
-  header: {
+  container: { flex: 1, backgroundColor: colors.black },
+  headerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingTop: 16,
   },
-  logoContainer: { flexDirection: 'row', alignItems: 'center' },
-  logo: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#e50914',
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
   },
-  logoPlay: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 10,
-    borderTopWidth: 6,
-    borderBottomWidth: 6,
-    borderLeftColor: '#fff',
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
+  logoText: {
+    color: colors.red,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  logoAccent: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
   fmBadge: {
     flexDirection: 'row',
@@ -217,7 +212,10 @@ const styles = StyleSheet.create({
   },
   fmBadgeUnlocked: { backgroundColor: 'rgba(30,160,30,0.7)' },
   fmBadgeText: { fontSize: 11, color: '#fff', fontWeight: '700' },
-  carousel: { flexDirection: 'row', paddingHorizontal: 16 },
+  tabsWrapper: {
+    marginTop: 18,
+  },
+  carousel: { flexDirection: 'row', paddingHorizontal: 16, gap: 12 },
 });
 
 export default HomeScreen;

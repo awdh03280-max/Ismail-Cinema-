@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 interface MovieCardProps {
   movie: any;
@@ -16,7 +17,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
   isFavorite,
 }) => {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <Image source={{ uri: movie.Poster }} style={styles.poster} />
 
       <View style={styles.overlay}>
@@ -27,7 +28,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
             onPress();
           }}
         >
-          <Ionicons name="play" size={32} color="#fff" />
+          <Ionicons name="play" size={26} color="#fff" style={{ marginLeft: 2 }} />
         </TouchableOpacity>
       </View>
 
@@ -40,8 +41,8 @@ const MovieCard: React.FC<MovieCardProps> = ({
       >
         <Ionicons
           name={isFavorite ? 'heart' : 'heart-outline'}
-          size={20}
-          color={isFavorite ? '#e50914' : '#fff'}
+          size={18}
+          color={isFavorite ? colors.red : '#fff'}
         />
       </TouchableOpacity>
 
@@ -50,7 +51,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
           {movie.Title}
         </Text>
         <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={12} color="#e50914" />
+          <Ionicons name="star" size={11} color={colors.gold} />
           <Text style={styles.rating}>{movie.imdbRating}</Text>
         </View>
       </View>
@@ -60,15 +61,27 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 10,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Platform.select({
+      web: { boxShadow: '0 6px 18px rgba(0,0,0,0.55)' } as object,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.45,
+        shadowRadius: 8,
+        elevation: 5,
+      },
+    }),
   },
   poster: {
     width: '100%',
     height: 180,
-    backgroundColor: '#111',
+    backgroundColor: colors.surface,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -77,43 +90,54 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   playButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(229,9,20,0.75)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(229,9,20,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     opacity: 0,
+    ...Platform.select({
+      web: { boxShadow: '0 0 16px 4px rgba(229,9,20,0.6)' } as object,
+      default: {
+        shadowColor: colors.red,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 12,
+      },
+    }),
   },
   favoriteIcon: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.25)',
   },
   info: {
-    padding: 8,
+    padding: 10,
   },
   title: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 5,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   rating: {
-    color: '#e50914',
+    color: colors.gold,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 

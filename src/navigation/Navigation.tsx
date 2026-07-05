@@ -19,13 +19,14 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // ── Shared header options ─────────────────────────────────────────────────────
 const sharedHeader = {
-  headerStyle: { backgroundColor: '#0a0e27' },
+  headerStyle: { backgroundColor: colors.black },
   headerTintColor: '#fff',
   headerTitleStyle: { fontWeight: 'bold' as const },
 };
@@ -97,17 +98,17 @@ const BottomTabNavigator = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#e50914',
-        tabBarInactiveTintColor: '#666',
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: '#5a5a5a',
         tabBarStyle: {
-          backgroundColor: '#1a1a1a',
-          borderTopColor: '#333',
+          backgroundColor: '#000000',
+          borderTopColor: 'rgba(212, 175, 55, 0.16)',
           borderTopWidth: 1,
           paddingBottom: 8,
           paddingTop: 8,
           height: 65,
         },
-        tabBarLabelStyle: { fontSize: 12, marginTop: 4 },
+        tabBarLabelStyle: { fontSize: 12, marginTop: 4, fontWeight: '600' },
       }}
     >
       <Tab.Screen

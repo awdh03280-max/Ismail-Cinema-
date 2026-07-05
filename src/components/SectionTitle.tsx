@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 interface SectionTitleProps {
   title: string;
@@ -10,11 +11,14 @@ interface SectionTitleProps {
 const SectionTitle: React.FC<SectionTitleProps> = ({ title, onSeeAll }) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.accentBar} />
+        <Text style={styles.title}>{title}</Text>
+      </View>
       {onSeeAll && (
         <TouchableOpacity onPress={onSeeAll} style={styles.seeAllButton}>
           <Text style={styles.seeAllText}>See All</Text>
-          <Ionicons name="chevron-forward" size={16} color="#e50914" />
+          <Ionicons name="chevron-forward" size={16} color={colors.gold} />
         </TouchableOpacity>
       )}
     </View>
@@ -27,13 +31,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 12,
+    marginTop: 24,
+    marginBottom: 14,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  accentBar: {
+    width: 3,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: colors.gold,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: 19,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    letterSpacing: 0.3,
   },
   seeAllButton: {
     flexDirection: 'row',
@@ -41,9 +57,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   seeAllText: {
-    color: '#e50914',
+    color: colors.gold,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 

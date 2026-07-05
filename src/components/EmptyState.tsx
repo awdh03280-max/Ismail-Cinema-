@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 interface EmptyStateProps {
   icon?: string;
@@ -15,7 +16,9 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <Ionicons name={icon as any} size={64} color="#666" />
+      <View style={styles.iconCircle}>
+        <Ionicons name={icon as any} size={48} color={colors.gold} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       {message && <Text style={styles.message}>{message}</Text>}
     </View>
@@ -28,16 +31,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
+    backgroundColor: colors.black,
+  },
+  iconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginTop: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 4,
   },
   message: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textMuted,
     marginTop: 8,
     textAlign: 'center',
   },
