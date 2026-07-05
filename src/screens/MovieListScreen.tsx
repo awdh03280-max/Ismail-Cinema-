@@ -4,7 +4,7 @@ import { searchMovies, Movie } from '../api/tmdb';
 import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
-import { addToFavorites, removeFromFavorites, isFavorite } from '../storage/storage';
+import { addToFavorites, removeFromFavorites, getFavorites } from '../storage/storage';
 import { colors } from '../theme/colors';
 
 const MovieListScreen = ({ route, navigation }: any) => {
@@ -37,19 +37,18 @@ const MovieListScreen = ({ route, navigation }: any) => {
 
   const loadFavoritesForMovies = async (movies: Movie[]) => {
     try {
-      const favSet = new Set<string>();
-      for (const movie of movies) {
-        const isFav = await isFavorite(movie.imdbID);
-        if (isFav) favSet.add(movie.imdbID);
-      }
+      // Read favorites once and check membership in-memory.
+      const allFavs = await getFavorites();
+      const favIds = new Set(allFavs.map(f => f.imdbID));
+      const favSet = new Set<string>(movies.map(m => m.imdbID).filter(id => favIds.has(id)));
       setFavorites(favSet);
     } catch (error) {
       console.error('Error loading favorites:', error);
     }
   };
 
-  const handleMoviePress = (movieId: string) => {
-    navigation.navigate('MovieDetails', { movieId });
+  const handleMoviePress = (movie: Movie) => {
+    navigation.navigate('MovieDetails', { movieId: movie.imdbID, contentType: movie.contentType });
   };
 
   const handleFavoritePress = async (movie: Movie) => {
@@ -66,6 +65,7 @@ const MovieListScreen = ({ route, navigation }: any) => {
           imdbID: movie.imdbID,
           title: movie.Title,
           poster: movie.Poster,
+          contentType: movie.contentType,
           addedAt: Date.now(),
         });
         setFavorites(prev => new Set(prev).add(movie.imdbID));
@@ -100,7 +100,7 @@ const MovieListScreen = ({ route, navigation }: any) => {
             <View style={styles.movieContainer}>
               <MovieCard
                 movie={item}
-                onPress={() => handleMoviePress(item.imdbID)}
+                onPress={() => handleMoviePress(item)}
                 onFavoritePress={() => handleFavoritePress(item)}
                 isFavorite={favorites.has(item.imdbID)}
               />

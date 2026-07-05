@@ -20,12 +20,13 @@ export type RootStackParamList = {
   Profile: undefined;
 
   // Shared screens
-  MovieDetails: { movieId: string };
+  MovieDetails: { movieId: string; contentType?: 'movie' | 'tv' };
   MovieList: { category: string };
   Player: {
     movieId: string;
     title: string;
     poster: string;
+    contentType?: 'movie' | 'tv';
     runtimeMinutes?: number;
     initialProgress?: number;
   };

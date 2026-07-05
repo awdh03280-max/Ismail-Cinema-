@@ -41,6 +41,8 @@ interface PlayerParams {
   movieId: string;
   title: string;
   poster: string;
+  /** 'movie' | 'tv' — drives which streaming URL path to use */
+  contentType?: 'movie' | 'tv';
   /** Runtime in minutes, used to calculate % progress */
   runtimeMinutes?: number;
   /** Resume from saved position 0-100 */
@@ -52,6 +54,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
     movieId,
     title,
     poster,
+    contentType = 'movie',
     runtimeMinutes = 0,
     initialProgress = 0,
   }: PlayerParams = route.params;
@@ -96,6 +99,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
       imdbID: movieId,
       title,
       poster,
+      contentType,
       progress: initialProgress,
       watchedAt: Date.now(),
     });
@@ -231,7 +235,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const streamUrl = server.getUrl(movieId, quality, subtitle);
+  const streamUrl = server.getUrl(movieId, quality, subtitle, contentType);
 
   return (
     <View style={styles.container}>

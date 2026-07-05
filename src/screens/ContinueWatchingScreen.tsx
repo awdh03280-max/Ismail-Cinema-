@@ -67,8 +67,11 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleMoviePress = (movieId: string) => {
-    navigation.navigate('MovieDetails', { movieId });
+  const handleMoviePress = (item: WatchingMovie) => {
+    navigation.navigate('MovieDetails', {
+      movieId: item.imdbID,
+      contentType: item.contentType ?? 'movie',
+    });
   };
 
   /** Navigate straight to the player, resuming from saved progress */
@@ -78,6 +81,7 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
       movieId: item.imdbID,
       title: item.title,
       poster: item.poster,
+      contentType: item.contentType ?? 'movie',
       initialProgress: savedPos ?? item.progress,
     });
   };
@@ -135,7 +139,7 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
               <View style={styles.cardWrapper}>
                 <TouchableOpacity
                   style={styles.movieCard}
-                  onPress={() => handleMoviePress(item.imdbID)}
+                  onPress={() => handleMoviePress(item)}
                 >
                   <MovieCard
                     movie={{
@@ -144,7 +148,7 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
                       imdbID: item.imdbID,
                       imdbRating: 'N/A',
                     }}
-                    onPress={() => handleMoviePress(item.imdbID)}
+                    onPress={() => handleMoviePress(item)}
                   />
                 </TouchableOpacity>
 

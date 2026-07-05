@@ -44,8 +44,8 @@ const FavoritesScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleMoviePress = (movieId: string) => {
-    navigation.navigate('MovieDetails', { movieId });
+  const handleMoviePress = (item: FavoriteMovie) => {
+    navigation.navigate('MovieDetails', { movieId: item.imdbID, contentType: item.contentType ?? 'movie' });
   };
 
   if (loading) return <LoadingSpinner />;
@@ -79,7 +79,7 @@ const FavoritesScreen = ({ navigation }: any) => {
               <View style={styles.cardWrapper}>
                 <TouchableOpacity
                   style={styles.movieCard}
-                  onPress={() => handleMoviePress(item.imdbID)}
+                  onPress={() => handleMoviePress(item)}
                 >
                   <View style={{ flex: 1 }}>
                     <MovieCard
@@ -94,11 +94,11 @@ const FavoritesScreen = ({ navigation }: any) => {
                         Genre: '',
                         Director: '',
                         Cast: '',
-                        Type: 'movie',
+                        Type: item.contentType === 'tv' ? 'series' : 'movie',
                         Released: '',
                         Language: ''
                       }}
-                      onPress={() => handleMoviePress(item.imdbID)}
+                      onPress={() => handleMoviePress(item)}
                       isFavorite={true}
                     />
                   </View>

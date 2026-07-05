@@ -20,6 +20,8 @@ export interface FavoriteMovie {
   title: string;
   poster: string;
   addedAt: number;
+  /** 'movie' | 'tv' — optional for backward compat with existing stored entries */
+  contentType?: 'movie' | 'tv';
 }
 
 export interface ContinueWatchingMovie {
@@ -28,6 +30,8 @@ export interface ContinueWatchingMovie {
   poster: string;
   progress: number; // 0-100
   watchedAt: number;
+  /** 'movie' | 'tv' — optional for backward compat with existing stored entries */
+  contentType?: 'movie' | 'tv';
 }
 
 // ── Favorites ──────────────────────────────────────────────────────────────
@@ -165,14 +169,16 @@ export const savePlaybackPosition = async (
   imdbID: string,
   position: number
 ): Promise<void> => {
-  try {
-    const raw = await AsyncStorage.getItem(PLAYBACK_KEY);
-    const record: PlaybackRecord = raw ? JSON.parse(raw) : {};
-    record[imdbID] = Math.min(Math.max(position, 0), 100);
-    await AsyncStorage.setItem(PLAYBACK_KEY, JSON.stringify(record));
-  } catch (error) {
-    console.error('Error saving playback position:', error);
-  }
+  return withWriteLock(PLAYBACK_KEY, async () => {
+    try {
+      const raw = await AsyncStorage.getItem(PLAYBACK_KEY);
+      const record: PlaybackRecord = raw ? JSON.parse(raw) : {};
+      record[imdbID] = Math.min(Math.max(position, 0), 100);
+      await AsyncStorage.setItem(PLAYBACK_KEY, JSON.stringify(record));
+    } catch (error) {
+      console.error('Error saving playback position:', error);
+    }
+  });
 };
 
 export const getPlaybackPosition = async (

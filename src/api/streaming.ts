@@ -5,7 +5,7 @@ export interface StreamingServer {
   id: string;
   name: string;
   /** subtitle is a BCP-47 language code, e.g. 'en', 'ar', or 'off' */
-  getUrl: (tmdbId: string, quality?: Quality, subtitle?: string) => string;
+  getUrl: (tmdbId: string, quality?: Quality, subtitle?: string, contentType?: 'movie' | 'tv') => string;
   supportsQuality: boolean;
   supportsSubtitles: boolean;
 }
@@ -19,8 +19,9 @@ export const SERVERS: StreamingServer[] = [
     id: 'vidsrc_to',
     name: 'VidSrc',
     // subtitle= param selects the default subtitle track when the player loads.
-    getUrl: (id, _quality, subtitle) => {
-      const base = `https://vidsrc.to/embed/movie/${id}`;
+    getUrl: (id, _quality, subtitle, contentType = 'movie') => {
+      const type = contentType === 'tv' ? 'tv' : 'movie';
+      const base = `https://vidsrc.to/embed/${type}/${id}`;
       return subtitle && subtitle !== 'off' ? `${base}?subtitle=${subtitle}` : base;
     },
     supportsQuality: false,
@@ -30,8 +31,9 @@ export const SERVERS: StreamingServer[] = [
     id: 'vidsrc_me',
     name: 'VidSrc 2',
     // ds_lang selects the subtitle language in the vidsrc.me player.
-    getUrl: (id, _quality, subtitle) => {
-      const base = `https://vidsrc.me/embed/movie?tmdb=${id}`;
+    getUrl: (id, _quality, subtitle, contentType = 'movie') => {
+      const type = contentType === 'tv' ? 'tv' : 'movie';
+      const base = `https://vidsrc.me/embed/${type}?tmdb=${id}`;
       return subtitle && subtitle !== 'off' ? `${base}&ds_lang=${subtitle}` : base;
     },
     supportsQuality: false,
@@ -40,21 +42,31 @@ export const SERVERS: StreamingServer[] = [
   {
     id: 'autoembed',
     name: 'AutoEmbed',
-    getUrl: (id) => `https://player.autoembed.cc/embed/movie/${id}`,
+    getUrl: (id, _quality, _subtitle, contentType = 'movie') => {
+      const type = contentType === 'tv' ? 'tv' : 'movie';
+      return `https://player.autoembed.cc/embed/${type}/${id}`;
+    },
     supportsQuality: false,
     supportsSubtitles: false,
   },
   {
     id: 'multiembed',
     name: 'MultiEmbed',
-    getUrl: (id) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+    // multiembed uses a query-string type param
+    getUrl: (id, _quality, _subtitle, contentType = 'movie') => {
+      const typeParam = contentType === 'tv' ? '&tv=1' : '';
+      return `https://multiembed.mov/?video_id=${id}&tmdb=1${typeParam}`;
+    },
     supportsQuality: false,
     supportsSubtitles: false,
   },
   {
     id: 'twoembed',
     name: '2Embed',
-    getUrl: (id) => `https://www.2embed.cc/embed/${id}`,
+    getUrl: (id, _quality, _subtitle, contentType = 'movie') => {
+      const type = contentType === 'tv' ? 'embedtv' : 'embed';
+      return `https://www.2embed.cc/${type}/${id}`;
+    },
     supportsQuality: false,
     supportsSubtitles: false,
   },

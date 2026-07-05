@@ -26,6 +26,7 @@ import {
   addToFavorites,
   removeFromFavorites,
   isFavorite,
+  getFavorites,
   addToContinueWatching,
   getPlaybackPosition,
 } from '../storage/storage';
@@ -147,10 +148,11 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       setRecommended(recommendedRes.slice(0, 12));
 
       const rowMovies = [...similarRes.slice(0, 12), ...recommendedRes.slice(0, 12)];
-      const favSet = new Set<string>();
-      for (const m of rowMovies) {
-        if (await isFavorite(m.imdbID)) favSet.add(m.imdbID);
-      }
+      // Read the full favorites list once, then check membership in-memory
+      // instead of calling isFavorite() (which reads AsyncStorage) per movie.
+      const allFavs = await getFavorites();
+      const favIds = new Set(allFavs.map(f => f.imdbID));
+      const favSet = new Set<string>(rowMovies.map(m => m.imdbID).filter(id => favIds.has(id)));
       setRowFavorites(favSet);
     } catch (error) {
       console.log(error);
@@ -169,6 +171,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
         imdbID: movieId,
         title: movie.Title,
         poster: movie.Poster,
+        contentType,
         addedAt: Date.now(),
       });
       setIsFav(true);
@@ -186,6 +189,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
         imdbID: m.imdbID,
         title: m.Title,
         poster: m.Poster,
+        contentType: m.contentType,
         addedAt: Date.now(),
       });
       const next = new Set(rowFavorites);
@@ -219,6 +223,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       movieId,
       title: movie.Title,
       poster: movie.Poster,
+      contentType,
       runtimeMinutes,
       initialProgress: savedProgress,
     });

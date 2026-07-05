@@ -39,26 +39,29 @@ interface HomeSection {
 }
 
 /** Maps a stored continue-watching entry to the minimal shape MovieCard needs. */
-const toContinueWatchingMovie = (m: ContinueWatchingMovie): Movie => ({
-  imdbID: m.imdbID,
-  Title: m.title,
-  Year: '',
-  Poster: m.poster,
-  Backdrop: '',
-  Plot: '',
-  imdbRating: 'N/A',
-  voteCount: 0,
-  Runtime: '',
-  Genre: '',
-  Director: '',
-  Cast: '',
-  Type: 'movie',
-  Released: '',
-  Language: '',
-  Country: '',
-  adult: false,
-  contentType: 'movie',
-});
+const toContinueWatchingMovie = (m: ContinueWatchingMovie): Movie => {
+  const ct = m.contentType ?? 'movie';
+  return {
+    imdbID: m.imdbID,
+    Title: m.title,
+    Year: '',
+    Poster: m.poster,
+    Backdrop: '',
+    Plot: '',
+    imdbRating: 'N/A',
+    voteCount: 0,
+    Runtime: '',
+    Genre: '',
+    Director: '',
+    Cast: '',
+    Type: ct === 'tv' ? 'series' : 'movie',
+    Released: '',
+    Language: '',
+    Country: '',
+    adult: false,
+    contentType: ct,
+  };
+};
 
 const HomeScreen = ({ navigation }: any) => {
   const [hero, setHero] = useState<Movie[]>([]);
@@ -165,6 +168,7 @@ const HomeScreen = ({ navigation }: any) => {
         imdbID: movie.imdbID,
         title: movie.Title,
         poster: movie.Poster,
+        contentType: movie.contentType,
         addedAt: Date.now(),
       });
       const next = new Set(favorites);

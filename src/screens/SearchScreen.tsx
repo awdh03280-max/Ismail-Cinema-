@@ -16,7 +16,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import {
   addToFavorites,
   removeFromFavorites,
-  isFavorite,
+  getFavorites,
 } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { colors } from '../theme/colors';
@@ -49,10 +49,11 @@ const SearchScreen = ({ navigation }: any) => {
 
   const loadFavoritesForMovies = async (list: Movie[]) => {
     try {
-      const favSet = new Set<string>();
-      for (const movie of list) {
-        if (await isFavorite(movie.imdbID)) favSet.add(movie.imdbID);
-      }
+      // Read the full favorites list once, then check membership in-memory
+      // instead of calling isFavorite() (which reads AsyncStorage) per movie.
+      const allFavs = await getFavorites();
+      const favIds = new Set(allFavs.map(f => f.imdbID));
+      const favSet = new Set<string>(list.map(m => m.imdbID).filter(id => favIds.has(id)));
       setFavorites(favSet);
     } catch (error) {
       console.error(error);
@@ -115,6 +116,7 @@ const SearchScreen = ({ navigation }: any) => {
         imdbID: movie.imdbID,
         title: movie.Title,
         poster: movie.Poster,
+        contentType: movie.contentType,
         addedAt: Date.now(),
       });
       const next = new Set(favorites);
