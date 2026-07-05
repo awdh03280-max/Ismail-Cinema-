@@ -36,6 +36,16 @@ export interface Movie {
   adult: boolean;
   /** 'movie' | 'tv' — drives which TMDB endpoint to call for details. */
   contentType: 'movie' | 'tv';
+  /** YouTube video key for the official trailer (if available). */
+  trailerKey: string;
+  /** Age/content certification (e.g. "PG-13", "R", "TV-MA"). */
+  certification: string;
+  /** Production company names (up to 5). */
+  productionCompanies: string[];
+  /** IMDb external ID (e.g. "tt1234567") — used to link to IMDb. */
+  imdbExternalId: string;
+  /** Tagline from TMDB. */
+  tagline: string;
 }
 
 function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
@@ -68,6 +78,11 @@ function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
       .join(', '),
     adult: movie.adult === true,
     contentType,
+    trailerKey: '',
+    certification: '',
+    productionCompanies: [],
+    imdbExternalId: '',
+    tagline: movie.tagline || '',
   };
 }
 
@@ -294,7 +309,7 @@ export const getMovieDetails = async (id: string): Promise<Movie> => {
   const res = await api.get(`/movie/${id}`, {
     params: {
       api_key: API_KEY,
-      append_to_response: 'credits',
+      append_to_response: 'credits,videos,release_dates,external_ids',
     },
   });
 
@@ -319,6 +334,33 @@ export const getMovieDetails = async (id: string): Promise<Movie> => {
       ?.map((c: any) => c.name)
       .join(', ') || '';
 
+  movie.tagline = res.data.tagline || '';
+
+  // Official trailer from YouTube
+  const trailer = (res.data.videos?.results || []).find(
+    (v: any) => v.type === 'Trailer' && v.site === 'YouTube'
+  ) || (res.data.videos?.results || []).find(
+    (v: any) => v.site === 'YouTube'
+  );
+  movie.trailerKey = trailer?.key || '';
+
+  // US age certification
+  const usRelease = (res.data.release_dates?.results || []).find(
+    (r: any) => r.iso_3166_1 === 'US'
+  );
+  const certEntry = (usRelease?.release_dates || []).find(
+    (d: any) => d.certification
+  );
+  movie.certification = certEntry?.certification || '';
+
+  // Production companies (up to 5)
+  movie.productionCompanies = (res.data.production_companies || [])
+    .slice(0, 5)
+    .map((c: any) => c.name as string);
+
+  // IMDb external ID
+  movie.imdbExternalId = res.data.external_ids?.imdb_id || '';
+
   return movie;
 };
 
@@ -326,14 +368,14 @@ export const getTVShowDetails = async (id: string): Promise<Movie> => {
   const res = await api.get(`/tv/${id}`, {
     params: {
       api_key: API_KEY,
-      append_to_response: 'credits',
+      append_to_response: 'credits,videos,content_ratings,external_ids',
     },
   });
 
   const show = mapMovie(res.data, 'tv');
 
   show.Runtime = res.data.episode_run_time?.[0]
-    ? `${res.data.episode_run_time[0]} min`
+    ? `${res.data.episode_run_time[0]} min/ep`
     : '';
 
   show.Genre = res.data.genres
@@ -352,6 +394,30 @@ export const getTVShowDetails = async (id: string): Promise<Movie> => {
       ?.slice(0, 5)
       ?.map((c: any) => c.name)
       .join(', ') || '';
+
+  show.tagline = res.data.tagline || '';
+
+  // Official trailer from YouTube
+  const trailer = (res.data.videos?.results || []).find(
+    (v: any) => v.type === 'Trailer' && v.site === 'YouTube'
+  ) || (res.data.videos?.results || []).find(
+    (v: any) => v.site === 'YouTube'
+  );
+  show.trailerKey = trailer?.key || '';
+
+  // US content rating
+  const usRating = (res.data.content_ratings?.results || []).find(
+    (r: any) => r.iso_3166_1 === 'US'
+  );
+  show.certification = usRating?.rating || '';
+
+  // Production companies (up to 5)
+  show.productionCompanies = (res.data.production_companies || [])
+    .slice(0, 5)
+    .map((c: any) => c.name as string);
+
+  // IMDb external ID
+  show.imdbExternalId = res.data.external_ids?.imdb_id || '';
 
   return show;
 };

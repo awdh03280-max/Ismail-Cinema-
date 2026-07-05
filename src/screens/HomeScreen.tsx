@@ -60,6 +60,12 @@ const toContinueWatchingMovie = (m: ContinueWatchingMovie): Movie => {
     Country: '',
     adult: false,
     contentType: ct,
+    // Detail-only fields — safe defaults for the card view
+    trailerKey: '',
+    certification: '',
+    productionCompanies: [],
+    imdbExternalId: '',
+    tagline: '',
   };
 };
 
