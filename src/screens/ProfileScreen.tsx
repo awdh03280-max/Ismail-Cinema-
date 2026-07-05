@@ -18,8 +18,10 @@ import { setLanguage, getLanguage } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { useAuth } from '../context/AuthContext';
 import { useXP } from '../context/XPContext';
+import { useFollow } from '../context/FollowContext';
 
-// Small inline component so it can safely call useXP inside the provider tree
+// Small inline components that safely call hooks inside provider tree
+
 const AchievementsSummary: React.FC = () => {
   const { unlockedIds, allAchievements, level } = useXP();
   return (
@@ -28,6 +30,99 @@ const AchievementsSummary: React.FC = () => {
     </Text>
   );
 };
+
+// Social stats row (followers / following tappable counters)
+// Notification bell with unread badge
+const NotificationIconWithBadge: React.FC = () => {
+  const { unreadCount } = useFollow();
+  return (
+    <View style={{ position: 'relative', width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }}>
+      <Ionicons name="notifications-outline" size={24} color="#d4af37" />
+      {unreadCount > 0 && (
+        <View style={socialStyles.inlineBadge}>
+          <Text style={socialStyles.inlineBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const SocialStatsRow: React.FC<{ navigation: any; uid: string }> = ({ navigation, uid }) => {
+  const { followersCount, followingCount, unreadCount } = useFollow();
+  const { userProfile } = useAuth();
+  const displayName = userProfile?.displayName ?? 'Cinema User';
+  return (
+    <View style={socialStyles.statsWrap}>
+      <TouchableOpacity
+        style={socialStyles.statBox}
+        onPress={() => navigation.navigate('FollowersScreen', { uid, displayName })}
+        activeOpacity={0.75}
+      >
+        <Text style={socialStyles.statCount}>{followersCount}</Text>
+        <Text style={socialStyles.statLabel}>Followers</Text>
+      </TouchableOpacity>
+      <View style={socialStyles.statDivider} />
+      <TouchableOpacity
+        style={socialStyles.statBox}
+        onPress={() => navigation.navigate('FollowingScreen', { uid, displayName })}
+        activeOpacity={0.75}
+      >
+        <Text style={socialStyles.statCount}>{followingCount}</Text>
+        <Text style={socialStyles.statLabel}>Following</Text>
+      </TouchableOpacity>
+      <View style={socialStyles.statDivider} />
+      <TouchableOpacity
+        style={socialStyles.statBox}
+        onPress={() => navigation.navigate('NotificationsScreen')}
+        activeOpacity={0.75}
+      >
+        <View style={socialStyles.bellWrap}>
+          <Ionicons name="notifications-outline" size={22} color="#d4af37" />
+          {unreadCount > 0 && (
+            <View style={socialStyles.badge}>
+              <Text style={socialStyles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={socialStyles.statLabel}>Activity</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const socialStyles = StyleSheet.create({
+  statsWrap: {
+    flexDirection: 'row',
+    marginTop: 16,
+    backgroundColor: '#111',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
+    overflow: 'hidden',
+    width: '90%',
+  },
+  statBox: { flex: 1, alignItems: 'center', paddingVertical: 12 },
+  statCount: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  statLabel: { fontSize: 10, color: '#666', marginTop: 2, fontWeight: '600' },
+  statDivider: { width: 1, backgroundColor: '#1e1e1e', marginVertical: 8 },
+  bellWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  badge: {
+    position: 'absolute', top: -4, right: -6,
+    backgroundColor: '#e50914', borderRadius: 8,
+    minWidth: 16, height: 16,
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 3, borderWidth: 1.5, borderColor: '#000',
+  },
+  badgeText: { fontSize: 9, color: '#fff', fontWeight: '800' },
+  inlineBadge: {
+    position: 'absolute', top: -4, right: -6,
+    backgroundColor: '#e50914', borderRadius: 7,
+    minWidth: 14, height: 14,
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 2, borderWidth: 1, borderColor: '#000',
+  },
+  inlineBadgeText: { fontSize: 8, color: '#fff', fontWeight: '800' },
+});
 
 const ProfileScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
@@ -129,6 +224,9 @@ const ProfileScreen = ({ navigation }: any) => {
 
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileEmail}>{displayEmail}</Text>
+
+          {/* Social stats row */}
+          <SocialStatsRow navigation={navigation} uid={user?.uid ?? ''} />
         </View>
 
         {/* ── Settings ───────────────────────────────────────────────────── */}
@@ -219,7 +317,7 @@ const ProfileScreen = ({ navigation }: any) => {
 
           {/* Achievements */}
           <TouchableOpacity
-            style={[styles.settingItem, styles.settingItemLast]}
+            style={styles.settingItem}
             onPress={() => navigation.navigate('AchievementsScreen')}
             activeOpacity={0.75}
           >
@@ -228,6 +326,22 @@ const ProfileScreen = ({ navigation }: any) => {
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingLabel}>Achievements</Text>
                 <AchievementsSummary />
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+          </TouchableOpacity>
+
+          {/* Social — Activity / Notifications */}
+          <TouchableOpacity
+            style={[styles.settingItem, styles.settingItemLast]}
+            onPress={() => navigation.navigate('NotificationsScreen')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <NotificationIconWithBadge />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Activity</Text>
+                <Text style={styles.settingValue}>Follow notifications</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#555" />

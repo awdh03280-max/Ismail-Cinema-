@@ -6,12 +6,14 @@ import Navigation from './src/navigation/Navigation';
 import { FamilyModeProvider } from './src/context/FamilyModeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { XPProvider } from './src/context/XPContext';
+import { FollowProvider } from './src/context/FollowContext';
 import AchievementUnlockToast from './src/components/AchievementUnlockToast';
 
 export default function App() {
   return (
     <AuthProvider>
       <XPProvider>
+        <FollowProvider>
         <FamilyModeProvider>
           <I18nextProvider i18n={i18next}>
             <View style={styles.container}>
@@ -20,6 +22,7 @@ export default function App() {
             </View>
           </I18nextProvider>
         </FamilyModeProvider>
+        </FollowProvider>
       </XPProvider>
     </AuthProvider>
   );

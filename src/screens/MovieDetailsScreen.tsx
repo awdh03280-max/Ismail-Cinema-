@@ -114,29 +114,42 @@ interface CommentCardProps {
   comment: Comment;
   currentUid: string | null;
   onLike: (commentId: string, liked: boolean) => void;
+  onAuthorPress?: (uid: string, displayName: string, photoURL: string | null) => void;
 }
 
-const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUid, onLike }) => {
+const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUid, onLike, onAuthorPress }) => {
   const liked = !!currentUid && comment.likes.includes(currentUid);
 
   return (
     <View style={commentStyles.card}>
-      {/* Avatar */}
+      {/* Avatar — tappable to open public profile */}
       <View style={commentStyles.avatarCol}>
-        {comment.photoURL ? (
-          <Image source={{ uri: comment.photoURL }} style={commentStyles.avatar} />
-        ) : (
-          <View style={[commentStyles.avatar, commentStyles.avatarFallback]}>
-            <Text style={commentStyles.avatarInitials}>{initials(comment.displayName)}</Text>
-          </View>
-        )}
+        <TouchableOpacity
+          onPress={() => onAuthorPress?.(comment.uid, comment.displayName, comment.photoURL)}
+          activeOpacity={0.75}
+          disabled={!onAuthorPress || comment.uid === currentUid}
+        >
+          {comment.photoURL ? (
+            <Image source={{ uri: comment.photoURL }} style={commentStyles.avatar} />
+          ) : (
+            <View style={[commentStyles.avatar, commentStyles.avatarFallback]}>
+              <Text style={commentStyles.avatarInitials}>{initials(comment.displayName)}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
         <View style={commentStyles.threadLine} />
       </View>
 
       {/* Body */}
       <View style={commentStyles.body}>
         <View style={commentStyles.headerRow}>
-          <Text style={commentStyles.name}>{comment.displayName}</Text>
+          <TouchableOpacity
+            onPress={() => onAuthorPress?.(comment.uid, comment.displayName, comment.photoURL)}
+            activeOpacity={0.7}
+            disabled={!onAuthorPress || comment.uid === currentUid}
+          >
+            <Text style={commentStyles.name}>{comment.displayName}</Text>
+          </TouchableOpacity>
           <Text style={commentStyles.time}>{formatRelativeTime(comment.createdAt)}</Text>
         </View>
         <Text style={commentStyles.text}>{comment.text}</Text>
@@ -884,6 +897,9 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
                   comment={c}
                   currentUid={user?.uid ?? null}
                   onLike={handleToggleLike}
+                  onAuthorPress={(uid, displayName, photoURL) =>
+                    navigation.push('PublicProfile', { uid, displayName, photoURL })
+                  }
                 />
               ))}
             </View>
