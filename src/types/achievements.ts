@@ -81,4 +81,6 @@ export interface XPContextType {
   }) => Promise<void>;
   trackComment: () => Promise<void>;
   isLoading: boolean;
+  /** Full achievement records keyed by id — includes unlock timestamps */
+  achievementDates: Partial<Record<AchievementId, number>>;
 }

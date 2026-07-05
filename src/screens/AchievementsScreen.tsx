@@ -234,7 +234,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 const AchievementsScreen: React.FC = () => {
-  const { xp, level, xpProgress, xpToNextLevel, stats, unlockedIds, allAchievements, isLoading } =
+  const { xp, level, xpProgress, xpToNextLevel, stats, unlockedIds, achievementDates, allAchievements, isLoading } =
     useXP();
 
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -261,11 +261,7 @@ const AchievementsScreen: React.FC = () => {
   // XP progress bar width
   const xpBarWidth = `${Math.round(xpProgress * 100)}%`;
 
-  // Find unlocked record timestamps from stats (we re-read from XP context)
-  // We'll use the unlockedAt from achievements map via a different approach
-  // Achievement unlock timestamps are stored in Firestore inside users/{uid}.achievements.
-  // XPContext exposes only the set of IDs; a future enhancement can surface full records.
-  const achievementDates: Partial<Record<AchievementId, number>> = {};
+  // achievementDates now comes from XPContext — maps id → unlockedAt timestamp
 
   return (
     <View style={styles.container}>

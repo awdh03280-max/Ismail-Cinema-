@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -192,8 +193,9 @@ const ProfileScreen = ({ navigation }: any) => {
     userProfile?.provider === 'google' ||
     user?.providerData?.[0]?.providerId === 'google.com';
 
-  // Avatar letter
+  // Avatar letter and photo
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || 'C';
+  const photoURL = userProfile?.photoURL || user?.photoURL || null;
 
   return (
     <View style={styles.container}>
@@ -210,9 +212,15 @@ const ProfileScreen = ({ navigation }: any) => {
       >
         {/* ── Avatar header ──────────────────────────────────────────────── */}
         <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarLetter}>{avatarLetter}</Text>
-          </View>
+          {photoURL ? (
+            <View style={styles.photoContainer}>
+              <Image source={{ uri: photoURL }} style={styles.photoImage} />
+            </View>
+          ) : (
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+            </View>
+          )}
 
           {/* Provider badge */}
           {isGoogleUser && (
@@ -442,6 +450,14 @@ const styles = StyleSheet.create({
   },
   avatarLetter: {
     fontSize: 36, fontWeight: '900', color: '#fff',
+  },
+  photoContainer: {
+    width: 88, height: 88, borderRadius: 44,
+    marginBottom: 8, overflow: 'hidden',
+    borderWidth: 3, borderColor: '#d4af37',
+  },
+  photoImage: {
+    width: '100%', height: '100%',
   },
   providerBadge: {
     flexDirection: 'row', alignItems: 'center',

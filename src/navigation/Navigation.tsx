@@ -20,6 +20,8 @@ import PublicProfileScreen from '../screens/PublicProfileScreen';
 import FollowersScreen from '../screens/FollowersScreen';
 import FollowingScreen from '../screens/FollowingScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import WatchPartyScreen from '../screens/WatchPartyScreen';
+import MovieListScreen from '../screens/MovieListScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -52,6 +54,8 @@ const socialScreens = (
     <Stack.Screen name="FollowersScreen" component={FollowersScreen as any} options={{ title: 'Followers' }} />
     <Stack.Screen name="FollowingScreen" component={FollowingScreen as any} options={{ title: 'Following' }} />
     <Stack.Screen name="NotificationsScreen" component={NotificationsScreen as any} options={{ title: 'Activity' }} />
+    <Stack.Screen name="WatchParty" component={WatchPartyScreen as any} options={{ title: 'Watch Party', headerShown: false }} />
+    <Stack.Screen name="MovieList" component={MovieListScreen as any} options={{ title: 'Movies' }} />
   </>
 );
 

@@ -9,3 +9,5 @@
 - [AsyncStorage race conditions](async-storage-race.md) — concurrent favorites/continue-watching writes need a per-key write-lock queue; read-modify-write without it silently drops updates.
 - [Screenshot tool caveat](screenshot-tool-fresh-load.md) — app_preview screenshots do a fresh page navigation each call, restarting client-side timers (e.g. splash intro); don't mistake this for a stuck animation.
 - [Follow system architecture](follow-system.md) — follows flat collection doc ID={followerId}_{followingId}; notifications/{uid}/feed subcollection; real-time counts from onSnapshot not counter fields; markNotificationsRead uses set+merge to survive deleted docs.
+- [Watch Party architecture](watch-party.md) — Firestore watchParties/{id} + members + chat subcollections; status 'waiting'→'watching' triggers onSnapshot auto-nav for all members; host guard required both UI and before updateDoc.
+- [Package install pattern](package-install.md) — project requires `npm install --legacy-peer-deps`; react-native-safe-area-context must be installed separately if missing after import.

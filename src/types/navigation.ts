@@ -52,4 +52,12 @@ export type RootStackParamList = {
     displayName: string;
   };
   NotificationsScreen: undefined;
+
+  // Watch Party
+  WatchParty: {
+    movieId?: string;
+    movieTitle?: string;
+    moviePoster?: string;
+    contentType?: 'movie' | 'tv';
+  };
 };

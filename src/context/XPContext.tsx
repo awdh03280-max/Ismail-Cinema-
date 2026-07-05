@@ -68,6 +68,7 @@ export interface PendingUnlock {
 interface XPContextInternal extends XPContextType {
   pendingUnlocks: PendingUnlock[];
   dismissUnlock: () => void;
+  achievementDates: Partial<Record<AchievementId, number>>;
 }
 
 const XPContext = createContext<XPContextInternal | null>(null);
@@ -81,6 +82,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [level, setLevel] = useState(1);
   const [stats, setStats] = useState<UserStats>(DEFAULT_STATS);
   const [unlockedIds, setUnlockedIds] = useState<Set<AchievementId>>(new Set());
+  const [achievementDates, setAchievementDates] = useState<Partial<Record<AchievementId, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [pendingUnlocks, setPendingUnlocks] = useState<PendingUnlock[]>([]);
 
@@ -96,6 +98,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       setLevel(1);
       setStats(DEFAULT_STATS);
       setUnlockedIds(new Set());
+      setAchievementDates({});
       setIsLoading(false);
       return;
     }
@@ -127,14 +130,21 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         const ids = new Set<AchievementId>(
           Object.keys(achievementsMap) as AchievementId[]
         );
+        // Build dates map from stored records
+        const dates: Partial<Record<AchievementId, number>> = {};
+        for (const [id, record] of Object.entries(achievementsMap)) {
+          if (record?.unlockedAt) dates[id as AchievementId] = record.unlockedAt;
+        }
 
         setXp(storedXp);
         setLevel(xpToLevel(storedXp));
         setStats(storedStats);
         setUnlockedIds(ids);
+        setAchievementDates(dates);
 
         // Update login streak on load
         await checkLoginStreak(storedStats, ids, storedXp);
+
       } catch (err) {
         console.error('[XP] Failed to load user data:', err);
       } finally {
@@ -263,6 +273,9 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         const newIds = new Set(currentIds);
         newIds.add(id);
         setUnlockedIds(newIds);
+        // Record the unlock timestamp locally
+        const unlockedAt = Date.now();
+        setAchievementDates(prev => ({ ...prev, [id]: unlockedAt }));
 
         if (achievement.xpReward > 0) {
           const newLevel = xpToLevel(xpAfterTransaction);
@@ -475,6 +488,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         xpProgress,
         stats,
         unlockedIds,
+        achievementDates,
         allAchievements: ACHIEVEMENTS,
         trackContentWatched,
         trackComment,

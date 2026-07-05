@@ -693,6 +693,23 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
                 {isFav ? 'In Watchlist' : 'Add to Watchlist'}
               </Text>
             </TouchableOpacity>
+
+            {/* Watch Party button */}
+            <TouchableOpacity
+              style={styles.watchPartyBtn}
+              onPress={() =>
+                navigation.navigate('WatchParty', {
+                  movieId,
+                  movieTitle: movie.Title,
+                  moviePoster: movie.Poster,
+                  contentType,
+                })
+              }
+              activeOpacity={0.8}
+            >
+              <Ionicons name="people-outline" size={18} color={colors.gold} />
+              <Text style={styles.watchPartyText}>Watch Party</Text>
+            </TouchableOpacity>
           </View>
 
           {/* ── Overview ──────────────────────────────────────────────── */}
@@ -1413,6 +1430,27 @@ const styles = StyleSheet.create({
   emptyCommentsNote: {
     color: colors.textMuted,
     fontSize: 13,
+  },
+
+  // ── Watch Party ──
+  watchPartyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(212,175,55,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(212,175,55,0.35)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  watchPartyText: {
+    color: colors.gold,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });
 

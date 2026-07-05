@@ -19,7 +19,7 @@ export interface FollowUser {
   followedAt: number; // Unix ms
 }
 
-export type NotificationType = 'follow';
+export type NotificationType = 'follow' | 'comment_like' | 'new_comment';
 
 export interface NotificationDoc {
   id: string;
