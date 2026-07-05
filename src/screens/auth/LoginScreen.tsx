@@ -37,8 +37,13 @@ const LoginScreen = ({ navigation }: any) => {
   const { trigger: googleSignIn, loading: googleLoading } = useGoogleAuth({
     onError: (err: any) => {
       const code: string = err?.code ?? '';
-      if (code !== 'auth/popup-closed-by-user') {
+      if (code === 'auth/popup-closed-by-user') return;
+      if (code) {
         setApiError(getAuthErrorMessage(code));
+      } else if (err?.message) {
+        setApiError(err.message);
+      } else {
+        setApiError('Google Sign-In failed. Please try again.');
       }
     },
   });

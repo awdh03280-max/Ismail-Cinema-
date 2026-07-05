@@ -46,12 +46,12 @@ const ProfileScreen = ({ navigation }: any) => {
 
   const handleLogout = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      t('sign_out_confirm_title'),
+      t('sign_out_confirm_message'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Sign Out',
+          text: t('sign_out'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -60,7 +60,7 @@ const ProfileScreen = ({ navigation }: any) => {
               // RootNavigator will switch to AuthStack automatically via onAuthStateChanged
             } catch {
               setLoggingOut(false);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
+              Alert.alert(t('error'), t('sign_out_error'));
             }
           },
         },
@@ -230,7 +230,7 @@ const ProfileScreen = ({ navigation }: any) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('about')}</Text>
           <View style={styles.aboutItem}>
-            <Text style={styles.aboutLabel}>App Name</Text>
+            <Text style={styles.aboutLabel}>{t('app_name_label')}</Text>
             <Text style={styles.aboutValue}>Ismail Cinema</Text>
           </View>
           <View style={styles.aboutItem}>
@@ -238,8 +238,8 @@ const ProfileScreen = ({ navigation }: any) => {
             <Text style={styles.aboutValue}>1.0.0</Text>
           </View>
           <View style={styles.aboutItem}>
-            <Text style={styles.aboutLabel}>Developer</Text>
-            <Text style={styles.aboutValue}>Ismail Cinema Team</Text>
+            <Text style={styles.aboutLabel}>{t('developer_label')}</Text>
+            <Text style={styles.aboutValue}>{t('developer_value')}</Text>
           </View>
         </View>
 

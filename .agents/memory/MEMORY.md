@@ -4,3 +4,5 @@
 - [Google Sign-In native setup](google-signin-native.md) — expo-auth-session useIdTokenAuthRequest; webClientId falls back for native when android/iosClientId not set; scheme required in app.json; WebBrowser.maybeCompleteAuthSession() at module level; signInWithGoogleCredential must be useCallback to stabilise hook deps.
 - [SplashScreen onComplete stability](splash-oncomplete.md) — onComplete arrow fn recreated each render resets the timer; fix by wrapping with useCallback in RootNavigator.
 - [SplashScreen cinematic design](splash-design.md) — expo-av WAV (native) + Web Audio API (web); async sound cleanup requires mounted-ref guard; useNativeDriver:true on transform/opacity only; pointerEvents on LinearGradient must go on a wrapping View.
+- [AsyncStorage race conditions](async-storage-race.md) — concurrent favorites/continue-watching writes need a per-key write-lock queue; read-modify-write without it silently drops updates.
+- [Screenshot tool caveat](screenshot-tool-fresh-load.md) — app_preview screenshots do a fresh page navigation each call, restarting client-side timers (e.g. splash intro); don't mistake this for a stuck animation.

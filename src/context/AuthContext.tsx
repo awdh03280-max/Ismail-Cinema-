@@ -218,6 +218,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const provider = new GoogleAuthProvider();
     provider.addScope('email');
     provider.addScope('profile');
+    // Always show the account chooser instead of silently reusing the
+    // last signed-in Google session — otherwise the picker can be skipped.
+    provider.setCustomParameters({ prompt: 'select_account' });
     const result = await signInWithPopup(auth, provider);
     const profile = await ensureUserProfile(result.user, 'google');
     setUserProfile(profile);

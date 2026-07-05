@@ -280,11 +280,11 @@ export const searchAnimation = async (query: string): Promise<Movie[]> => {
   ]);
 
   const movies = (movieRes.data.results || [])
-    .filter((m: any) => m.genre_ids?.includes(16))
+    .filter((m: any) => m.genre_ids?.includes(16) && m.original_language !== 'ja')
     .map((m: any) => mapMovie(m, 'movie'));
 
   const shows = (tvRes.data.results || [])
-    .filter((m: any) => m.genre_ids?.includes(16))
+    .filter((m: any) => m.genre_ids?.includes(16) && m.original_language !== 'ja')
     .map((m: any) => mapMovie(m, 'tv'));
 
   return [...movies, ...shows];

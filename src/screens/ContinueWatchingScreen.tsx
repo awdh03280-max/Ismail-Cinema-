@@ -21,15 +21,10 @@ import {
   removeContinueWatching,
   updateWatchProgress,
   getPlaybackPosition,
+  ContinueWatchingMovie,
 } from '../storage/storage';
 
-interface WatchingMovie {
-  imdbID: string;
-  title: string;
-  poster: string;
-  progress: number;
-  watchedAt: number;
-}
+type WatchingMovie = ContinueWatchingMovie;
 
 const { width } = Dimensions.get('window');
 

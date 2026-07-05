@@ -62,6 +62,9 @@ export function useGoogleAuth(
     webClientId,
     androidClientId,
     iosClientId,
+    // Always show the account chooser instead of silently reusing the last
+    // signed-in Google session — without this, the picker can be skipped.
+    selectAccount: true,
   });
 
   // Handle the OAuth response that arrives after the browser redirect.

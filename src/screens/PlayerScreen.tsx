@@ -151,9 +151,9 @@ const PlayerScreen = ({ route, navigation }: any) => {
 
   const saveProgress = useCallback(async () => {
     const progress = computeProgress();
-    await updateWatchProgress(movieId, progress);
+    await updateWatchProgress(movieId, progress, { title, poster });
     await savePlaybackPosition(movieId, progress);
-  }, [movieId]);
+  }, [movieId, title, poster]);
 
   // ── Controls overlay ──────────────────────────────────────────────────────
 

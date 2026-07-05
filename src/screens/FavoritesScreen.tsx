@@ -6,14 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MovieCard from '../components/MovieCard';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getFavorites, removeFromFavorites } from '../storage/storage';
-
-interface FavoriteMovie {
-  imdbID: string;
-  title: string;
-  poster: string;
-  addedAt: number;
-}
+import { getFavorites, removeFromFavorites, FavoriteMovie } from '../storage/storage';
 
 const FavoritesScreen = ({ navigation }: any) => {
   const [favorites, setFavorites] = useState<FavoriteMovie[]>([]);

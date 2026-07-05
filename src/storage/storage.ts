@@ -1,5 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Serializes read-modify-write operations per storage key so concurrent calls
+// (e.g. rapid favorite toggles) can't clobber each other's writes.
+const writeQueues = new Map<string, Promise<any>>();
+function withWriteLock<T>(key: string, task: () => Promise<T>): Promise<T> {
+  const previous = writeQueues.get(key) ?? Promise.resolve();
+  const next = previous.then(task, task);
+  writeQueues.set(key, next.catch(() => undefined));
+  return next;
+}
+
 const FAVORITES_KEY = '@ismail_cinema_favorites';
 const CONTINUE_WATCHING_KEY = '@ismail_cinema_continue_watching';
 const LANGUAGE_KEY = '@ismail_cinema_language';
@@ -23,26 +33,30 @@ export interface ContinueWatchingMovie {
 // ── Favorites ──────────────────────────────────────────────────────────────
 
 export const addToFavorites = async (movie: FavoriteMovie): Promise<void> => {
-  try {
-    const favorites = await getFavorites();
-    const exists = favorites.some(m => m.imdbID === movie.imdbID);
-    if (!exists) {
-      favorites.push(movie);
-      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+  return withWriteLock(FAVORITES_KEY, async () => {
+    try {
+      const favorites = await getFavorites();
+      const exists = favorites.some(m => m.imdbID === movie.imdbID);
+      if (!exists) {
+        favorites.push(movie);
+        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+      }
+    } catch (error) {
+      console.error('Error adding to favorites:', error);
     }
-  } catch (error) {
-    console.error('Error adding to favorites:', error);
-  }
+  });
 };
 
 export const removeFromFavorites = async (imdbID: string): Promise<void> => {
-  try {
-    const favorites = await getFavorites();
-    const filtered = favorites.filter(m => m.imdbID !== imdbID);
-    await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(filtered));
-  } catch (error) {
-    console.error('Error removing from favorites:', error);
-  }
+  return withWriteLock(FAVORITES_KEY, async () => {
+    try {
+      const favorites = await getFavorites();
+      const filtered = favorites.filter(m => m.imdbID !== imdbID);
+      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error removing from favorites:', error);
+    }
+  });
 };
 
 export const getFavorites = async (): Promise<FavoriteMovie[]> => {
@@ -65,18 +79,25 @@ export const isFavorite = async (imdbID: string): Promise<boolean> => {
 export const addToContinueWatching = async (
   movie: ContinueWatchingMovie
 ): Promise<void> => {
-  try {
-    const continuing = await getContinueWatching();
-    const index = continuing.findIndex(m => m.imdbID === movie.imdbID);
-    if (index >= 0) {
-      continuing[index] = movie;
-    } else {
-      continuing.push(movie);
+  return withWriteLock(CONTINUE_WATCHING_KEY, async () => {
+    try {
+      const continuing = await getContinueWatching();
+      const index = continuing.findIndex(m => m.imdbID === movie.imdbID);
+      if (index >= 0) {
+        // Preserve existing progress if the new entry doesn't advance it —
+        // re-opening a movie shouldn't reset an in-progress watch.
+        continuing[index] = {
+          ...movie,
+          progress: Math.max(continuing[index].progress, movie.progress),
+        };
+      } else {
+        continuing.push(movie);
+      }
+      await AsyncStorage.setItem(CONTINUE_WATCHING_KEY, JSON.stringify(continuing));
+    } catch (error) {
+      console.error('Error adding to continue watching:', error);
     }
-    await AsyncStorage.setItem(CONTINUE_WATCHING_KEY, JSON.stringify(continuing));
-  } catch (error) {
-    console.error('Error adding to continue watching:', error);
-  }
+  });
 };
 
 export const getContinueWatching = async (): Promise<ContinueWatchingMovie[]> => {
@@ -90,30 +111,48 @@ export const getContinueWatching = async (): Promise<ContinueWatchingMovie[]> =>
 };
 
 export const removeContinueWatching = async (imdbID: string): Promise<void> => {
-  try {
-    const continuing = await getContinueWatching();
-    const filtered = continuing.filter(m => m.imdbID !== imdbID);
-    await AsyncStorage.setItem(CONTINUE_WATCHING_KEY, JSON.stringify(filtered));
-  } catch (error) {
-    console.error('Error removing from continue watching:', error);
-  }
+  return withWriteLock(CONTINUE_WATCHING_KEY, async () => {
+    try {
+      const continuing = await getContinueWatching();
+      const filtered = continuing.filter(m => m.imdbID !== imdbID);
+      await AsyncStorage.setItem(CONTINUE_WATCHING_KEY, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error removing from continue watching:', error);
+    }
+  });
 };
 
 export const updateWatchProgress = async (
   imdbID: string,
-  progress: number
+  progress: number,
+  fallback?: { title: string; poster: string }
 ): Promise<void> => {
-  try {
-    const continuing = await getContinueWatching();
-    const index = continuing.findIndex(m => m.imdbID === imdbID);
-    if (index >= 0) {
-      continuing[index].progress = Math.min(Math.max(Math.round(progress), 0), 100);
-      continuing[index].watchedAt = Date.now();
+  return withWriteLock(CONTINUE_WATCHING_KEY, async () => {
+    try {
+      const continuing = await getContinueWatching();
+      const index = continuing.findIndex(m => m.imdbID === imdbID);
+      const clamped = Math.min(Math.max(Math.round(progress), 0), 100);
+      if (index >= 0) {
+        continuing[index].progress = clamped;
+        continuing[index].watchedAt = Date.now();
+      } else if (fallback) {
+        // Entry was missing (e.g. removed elsewhere) — recreate it instead
+        // of silently dropping the progress update.
+        continuing.push({
+          imdbID,
+          title: fallback.title,
+          poster: fallback.poster,
+          progress: clamped,
+          watchedAt: Date.now(),
+        });
+      } else {
+        return;
+      }
       await AsyncStorage.setItem(CONTINUE_WATCHING_KEY, JSON.stringify(continuing));
+    } catch (error) {
+      console.error('Error updating watch progress:', error);
     }
-  } catch (error) {
-    console.error('Error updating watch progress:', error);
-  }
+  });
 };
 
 // ── Playback position (precise, 0-100) ────────────────────────────────────

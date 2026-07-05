@@ -118,5 +118,12 @@
   "auth_error_password_weak": "8 أحرف على الأقل، حرف كبير ورقم.",
   "auth_error_password_mismatch": "كلمتا المرور غير متطابقتين.",
   "auth_error_name_required": "الاسم مطلوب.",
-  "auth_or": "أو"
+  "auth_or": "أو",
+  "sign_out_confirm_title": "تسجيل الخروج",
+  "sign_out_confirm_message": "هل أنت متأكد أنك تريد تسجيل الخروج؟",
+  "sign_out_error": "فشل تسجيل الخروج. الرجاء المحاولة مرة أخرى.",
+  "error": "خطأ",
+  "app_name_label": "اسم التطبيق",
+  "developer_label": "المطوّر",
+  "developer_value": "فريق Ismail Cinema"
 }

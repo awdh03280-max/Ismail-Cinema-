@@ -118,5 +118,12 @@
   "auth_error_password_weak": "Min 8 chars, 1 uppercase letter, 1 number.",
   "auth_error_password_mismatch": "Passwords do not match.",
   "auth_error_name_required": "Name is required.",
-  "auth_or": "or"
+  "auth_or": "or",
+  "sign_out_confirm_title": "Sign Out",
+  "sign_out_confirm_message": "Are you sure you want to sign out?",
+  "sign_out_error": "Failed to sign out. Please try again.",
+  "error": "Error",
+  "app_name_label": "App Name",
+  "developer_label": "Developer",
+  "developer_value": "Ismail Cinema Team"
 }
