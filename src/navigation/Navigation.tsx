@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
+import AnimeScreen from '../screens/AnimeScreen';
+import AnimationScreen from '../screens/AnimationScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ContinueWatchingScreen from '../screens/ContinueWatchingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -53,6 +55,22 @@ const SearchStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen name="SearchScreen" component={SearchScreen} options={{ title: 'Search' }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
+    {playerScreen}
+  </Stack.Navigator>
+);
+
+const AnimeStack = () => (
+  <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
+    <Stack.Screen name="AnimeScreen" component={AnimeScreen} />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ headerShown: true }} />
+    {playerScreen}
+  </Stack.Navigator>
+);
+
+const AnimationStack = () => (
+  <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
+    <Stack.Screen name="AnimationScreen" component={AnimationScreen} />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ headerShown: true }} />
     {playerScreen}
   </Stack.Navigator>
 );
@@ -125,6 +143,22 @@ const BottomTabNavigator = () => {
         options={{
           title: t('search'),
           tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Anime"
+        component={AnimeStack}
+        options={{
+          title: 'Anime',
+          tabBarIcon: ({ color, size }) => <Ionicons name="flash" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Animation"
+        component={AnimationStack}
+        options={{
+          title: 'Animation',
+          tabBarIcon: ({ color, size }) => <Ionicons name="color-palette" size={size} color={color} />,
         }}
       />
       <Tab.Screen

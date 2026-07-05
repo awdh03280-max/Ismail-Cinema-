@@ -154,6 +154,142 @@ export const getAnimationMovies = async (): Promise<Movie[]> => {
     .map((m: any) => mapMovie(m, 'movie'));
 };
 
+// ── Anime section endpoints ───────────────────────────────────────────────────
+
+/** Alias for the Anime screen's "Popular Anime" row. */
+export const getPopularAnime = getAnime;
+
+/** Trending anime — TMDB's global trending TV feed, filtered to Japanese animation. */
+export const getTrendingAnime = async (): Promise<Movie[]> => {
+  const res = await api.get('/trending/tv/week', {
+    params: { api_key: API_KEY },
+  });
+
+  return res.data.results
+    .filter((m: any) => m.genre_ids?.includes(16) && m.original_language === 'ja')
+    .map((m: any) => mapMovie(m, 'tv'));
+};
+
+/** Highest-rated anime with a meaningful vote count. */
+export const getTopRatedAnime = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/tv', {
+    params: {
+      api_key: API_KEY,
+      with_genres: 16,
+      with_original_language: 'ja',
+      sort_by: 'vote_average.desc',
+      'vote_count.gte': 50,
+    },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'tv'));
+};
+
+/** Anime currently airing new episodes. */
+export const getNewEpisodeAnime = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/tv', {
+    params: {
+      api_key: API_KEY,
+      with_genres: 16,
+      with_original_language: 'ja',
+      sort_by: 'first_air_date.desc',
+      'air_date.lte': new Date().toISOString().slice(0, 10),
+      with_status: '0|2',
+    },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'tv'));
+};
+
+/** Anime-only search — filters TV search results down to Japanese animation. */
+export const searchAnime = async (query: string): Promise<Movie[]> => {
+  const res = await api.get('/search/tv', {
+    params: { api_key: API_KEY, query, include_adult: false },
+  });
+
+  return (res.data.results || [])
+    .filter((m: any) => m.genre_ids?.includes(16) && m.original_language === 'ja')
+    .map((m: any) => mapMovie(m, 'tv'));
+};
+
+// ── Animation section endpoints ───────────────────────────────────────────────
+
+/** Alias for the Animation screen's "Animated Movies" row. */
+export const getAnimatedMovies = getAnimationMovies;
+
+/** Animated series — Animation genre TV shows, excluding Japanese anime. */
+export const getAnimatedSeries = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/tv', {
+    params: {
+      api_key: API_KEY,
+      with_genres: 16,
+      sort_by: 'popularity.desc',
+    },
+  });
+
+  return res.data.results
+    .filter((m: any) => m.original_language !== 'ja')
+    .map((m: any) => mapMovie(m, 'tv'));
+};
+
+/** Family-friendly animated movies — Animation + Family genres combined. */
+export const getFamilyAnimation = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_genres: '16,10751',
+      sort_by: 'popularity.desc',
+    },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+/** Kids Collection — well-known, highly-voted animated titles suited for kids. */
+export const getKidsCollection = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_genres: '16,10751',
+      sort_by: 'vote_count.desc',
+      'vote_average.gte': 6,
+    },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+/** Disney / Pixar style collections — filtered by known studio company IDs. */
+export const getDisneyPixarCollection = async (): Promise<Movie[]> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_companies: '2|3|6125|6127',
+      sort_by: 'popularity.desc',
+    },
+  });
+
+  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+/** Animation-only search — merges movie + TV search results filtered to Animation genre. */
+export const searchAnimation = async (query: string): Promise<Movie[]> => {
+  const [movieRes, tvRes] = await Promise.all([
+    api.get('/search/movie', { params: { api_key: API_KEY, query, include_adult: false } }),
+    api.get('/search/tv', { params: { api_key: API_KEY, query, include_adult: false } }),
+  ]);
+
+  const movies = (movieRes.data.results || [])
+    .filter((m: any) => m.genre_ids?.includes(16))
+    .map((m: any) => mapMovie(m, 'movie'));
+
+  const shows = (tvRes.data.results || [])
+    .filter((m: any) => m.genre_ids?.includes(16))
+    .map((m: any) => mapMovie(m, 'tv'));
+
+  return [...movies, ...shows];
+};
+
 export const getMovieDetails = async (id: string): Promise<Movie> => {
   const res = await api.get(`/movie/${id}`, {
     params: {
