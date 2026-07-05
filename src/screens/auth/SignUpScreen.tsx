@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ const isStrongPassword = (v: string) =>
 // ── Component ──────────────────────────────────────────────────────────────
 
 const SignUpScreen = ({ navigation }: any) => {
-  const { signUp } = useAuth();
+  const { signUp, googleRedirectError, clearGoogleRedirectError } = useAuth();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -52,6 +52,21 @@ const SignUpScreen = ({ navigation }: any) => {
       }
     },
   });
+
+  // Surface an error from a Google sign-in that completed via full-page
+  // redirect (popup fallback) after this screen remounted.
+  useEffect(() => {
+    if (!googleRedirectError) return;
+    const code: string = (googleRedirectError as any)?.code ?? '';
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      clearGoogleRedirectError();
+      return;
+    }
+    setApiError(
+      code ? getAuthErrorMessage(code) : 'Google Sign-In failed. Please try again.'
+    );
+    clearGoogleRedirectError();
+  }, [googleRedirectError, clearGoogleRedirectError]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};

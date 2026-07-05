@@ -16,6 +16,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
@@ -26,6 +27,8 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithCredential,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -54,6 +57,9 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  /** Populated if a signInWithRedirect-based Google sign-in completes with an error. */
+  googleRedirectError: unknown | null;
+  clearGoogleRedirectError: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -148,6 +154,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [googleRedirectError, setGoogleRedirectError] = useState<unknown | null>(null);
+
+  const clearGoogleRedirectError = useCallback(() => setGoogleRedirectError(null), []);
+
+  // ── Complete a Google sign-in that fell back to signInWithRedirect ─────────
+  // (e.g. when the popup was blocked). Firebase resolves this once, on the
+  // first load after the OAuth provider redirects back to this page.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    getRedirectResult(auth)
+      .then(async result => {
+        if (!result) return; // no pending redirect sign-in
+        const profile = await ensureUserProfile(result.user, 'google');
+        setUserProfile(profile);
+      })
+      .catch(err => setGoogleRedirectError(err));
+  }, []);
 
   // ── Persistent session restore ─────────────────────────────────────────────
   useEffect(() => {
@@ -213,7 +236,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUserProfile(profile);
   };
 
-  // ── Google Sign-In (web: signInWithPopup) ─────────────────────────────────
+  // ── Google Sign-In (web: signInWithPopup, falls back to redirect) ─────────
+  // Errors that mean "the popup mechanism itself didn't work" (as opposed to
+  // the user cancelling) — retry with a full-page redirect instead. This
+  // covers browsers/environments (e.g. embedded preview iframes, strict
+  // popup blockers) where window.open() is blocked or the popup can't
+  // communicate back to the opener.
+  const POPUP_FALLBACK_CODES = new Set([
+    'auth/popup-blocked',
+    'auth/operation-not-supported-in-this-environment',
+    'auth/web-storage-unsupported',
+  ]);
+
   const signInWithGoogle = async (): Promise<void> => {
     const provider = new GoogleAuthProvider();
     provider.addScope('email');
@@ -221,9 +255,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Always show the account chooser instead of silently reusing the
     // last signed-in Google session — otherwise the picker can be skipped.
     provider.setCustomParameters({ prompt: 'select_account' });
-    const result = await signInWithPopup(auth, provider);
-    const profile = await ensureUserProfile(result.user, 'google');
-    setUserProfile(profile);
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const profile = await ensureUserProfile(result.user, 'google');
+      setUserProfile(profile);
+    } catch (err: any) {
+      const code: string = err?.code ?? '';
+      if (POPUP_FALLBACK_CODES.has(code)) {
+        // Full-page redirect flow — the page navigates away and back;
+        // completion is handled by the getRedirectResult() effect above.
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+      throw err;
+    }
   };
 
   // ── Google Sign-In (native: called by useGoogleAuth hook with ID token) ───
@@ -260,6 +306,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <AuthContext.Provider
       value={{
+        googleRedirectError,
+        clearGoogleRedirectError,
         user,
         userProfile,
         isLoading,
