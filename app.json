@@ -24,7 +24,9 @@
       "minSdkVersion": 23,
       "permissions": [
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "pan",
@@ -49,8 +51,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "ismail-cinema"
+        "projectId": "29e4a3ff-e7ee-49e2-ba84-9dc397d40bad"
       }
-    }
+    },
+    "owner": "hgcbg"
   }
 }
