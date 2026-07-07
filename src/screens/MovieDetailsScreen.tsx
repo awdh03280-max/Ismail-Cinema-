@@ -53,7 +53,9 @@ import {
   getRecommendedTitles,
   Movie,
   CreditsResult,
+  TVEpisode,
 } from '../api/tmdb';
+import EpisodeBrowser from '../components/EpisodeBrowser';
 import {
   addToFavorites,
   removeFromFavorites,
@@ -479,6 +481,34 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
     }
   };
 
+  const handlePlayEpisode = async (season: number, episode: TVEpisode) => {
+    if (!movie) return;
+    const runtimeMinutes = episode.runtime ?? parseRuntime(movie.Runtime);
+    await addToContinueWatching({
+      imdbID: movieId,
+      title: movie.Title,
+      poster: movie.Poster,
+      progress: 0,
+      watchedAt: Date.now(),
+      contentType: 'tv',
+    });
+    const genres = movie.Genre
+      ? movie.Genre.split(',').map((g: string) => g.trim())
+      : [];
+    trackContentWatched({ imdbID: movieId, contentType: 'tv', genres }).catch(() => {});
+    navigation.navigate('Player', {
+      movieId,
+      title: movie.Title,
+      poster: movie.Poster,
+      contentType: 'tv',
+      runtimeMinutes,
+      initialProgress: 0,
+      season,
+      episode: episode.episode_number,
+      episodeTitle: episode.name,
+    });
+  };
+
   // ── Loading / Error States ─────────────────────────────────────────────────
 
   if (loading) {
@@ -780,6 +810,17 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
             </View>
           )}
         </Animated.View>
+
+        {/* ── Episode Browser (TV shows only) ─────────────────────────────── */}
+        {contentType === 'tv' && movie.seasons && movie.seasons.length > 0 && (
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <EpisodeBrowser
+              showId={movieId}
+              seasons={movie.seasons}
+              onPlayEpisode={handlePlayEpisode}
+            />
+          </Animated.View>
+        )}
 
         {/* ── Cast ─────────────────────────────────────────────────────────── */}
         {!!credits?.cast.length && (

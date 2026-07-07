@@ -28,6 +28,7 @@ import {
   updateWatchProgress,
   getPlaybackPosition,
   savePlaybackPosition,
+  markEpisodeWatched,
 } from '../storage/storage';
 import ServerSelector from '../components/player/ServerSelector';
 import QualitySelector from '../components/player/QualitySelector';
@@ -48,6 +49,12 @@ interface PlayerParams {
   runtimeMinutes?: number;
   /** Resume from saved position 0-100 */
   initialProgress?: number;
+  /** Season number (TV episodes only) */
+  season?: number;
+  /** Episode number (TV episodes only) */
+  episode?: number;
+  /** Episode title shown in the top bar (TV only) */
+  episodeTitle?: string;
 }
 
 const PlayerScreen = ({ route, navigation }: any) => {
@@ -58,6 +65,9 @@ const PlayerScreen = ({ route, navigation }: any) => {
     contentType = 'movie',
     runtimeMinutes = 0,
     initialProgress = 0,
+    season,
+    episode,
+    episodeTitle,
   }: PlayerParams = route.params;
 
   const { t, i18n } = useTranslation();
@@ -236,7 +246,18 @@ const PlayerScreen = ({ route, navigation }: any) => {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const streamUrl = server.getUrl(movieId, quality, subtitle, contentType);
+  // Mark episode watched when player opens (TV episodes only)
+  useEffect(() => {
+    if (contentType === 'tv' && season != null && episode != null) {
+      markEpisodeWatched(movieId, season, episode);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const streamUrl = server.getUrl(movieId, quality, subtitle, contentType, season, episode);
+  const displayTitle = (contentType === 'tv' && season != null && episode != null && episodeTitle)
+    ? `S${season}:E${episode} · ${episodeTitle}`
+    : title;
 
   return (
     <View style={styles.container}>
@@ -307,7 +328,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
             </TouchableOpacity>
 
             <View style={styles.titleContainer} pointerEvents="none">
-              <Text style={styles.movieTitle} numberOfLines={1}>{title}</Text>
+              <Text style={styles.movieTitle} numberOfLines={1}>{displayTitle}</Text>
               <View style={styles.serverTag}>
                 <Ionicons name="wifi" size={11} color="#e50914" />
                 <Text style={styles.serverTagText}>{server.name}</Text>

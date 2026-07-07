@@ -224,6 +224,86 @@ export const setFamilyModeSettings = async (
   }
 };
 
+// ── Watched Episodes ───────────────────────────────────────────────────────
+
+const WATCHED_EPISODES_KEY = '@ismail_cinema_watched_episodes';
+
+type WatchedEpisodesRecord = { [key: string]: number }; // key = `${showId}_s${s}_e${e}`, value = timestamp
+
+const episodeKey = (showId: string, season: number, episode: number) =>
+  `${showId}_s${season}_e${episode}`;
+
+export const markEpisodeWatched = async (
+  showId: string,
+  season: number,
+  episode: number
+): Promise<void> => {
+  return withWriteLock(WATCHED_EPISODES_KEY, async () => {
+    try {
+      const raw = await AsyncStorage.getItem(WATCHED_EPISODES_KEY);
+      const record: WatchedEpisodesRecord = raw ? JSON.parse(raw) : {};
+      record[episodeKey(showId, season, episode)] = Date.now();
+      await AsyncStorage.setItem(WATCHED_EPISODES_KEY, JSON.stringify(record));
+    } catch (error) {
+      console.error('Error marking episode watched:', error);
+    }
+  });
+};
+
+export const unmarkEpisodeWatched = async (
+  showId: string,
+  season: number,
+  episode: number
+): Promise<void> => {
+  return withWriteLock(WATCHED_EPISODES_KEY, async () => {
+    try {
+      const raw = await AsyncStorage.getItem(WATCHED_EPISODES_KEY);
+      const record: WatchedEpisodesRecord = raw ? JSON.parse(raw) : {};
+      delete record[episodeKey(showId, season, episode)];
+      await AsyncStorage.setItem(WATCHED_EPISODES_KEY, JSON.stringify(record));
+    } catch (error) {
+      console.error('Error unmarking episode watched:', error);
+    }
+  });
+};
+
+/** Returns a Set of keys `s{season}_e{episode}` for the given show. */
+export const getWatchedEpisodesForShow = async (
+  showId: string
+): Promise<Set<string>> => {
+  try {
+    const raw = await AsyncStorage.getItem(WATCHED_EPISODES_KEY);
+    if (!raw) return new Set();
+    const record: WatchedEpisodesRecord = JSON.parse(raw);
+    const prefix = `${showId}_`;
+    const result = new Set<string>();
+    for (const k of Object.keys(record)) {
+      if (k.startsWith(prefix)) {
+        result.add(k.slice(prefix.length)); // e.g. "s1_e3"
+      }
+    }
+    return result;
+  } catch (error) {
+    console.error('Error getting watched episodes:', error);
+    return new Set();
+  }
+};
+
+export const isEpisodeWatched = async (
+  showId: string,
+  season: number,
+  episode: number
+): Promise<boolean> => {
+  try {
+    const raw = await AsyncStorage.getItem(WATCHED_EPISODES_KEY);
+    if (!raw) return false;
+    const record: WatchedEpisodesRecord = JSON.parse(raw);
+    return episodeKey(showId, season, episode) in record;
+  } catch {
+    return false;
+  }
+};
+
 // ── Language ───────────────────────────────────────────────────────────────
 
 export const setLanguage = async (language: 'en' | 'ar'): Promise<void> => {

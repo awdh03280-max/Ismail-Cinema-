@@ -46,6 +46,10 @@ export interface Movie {
   imdbExternalId: string;
   /** Tagline from TMDB. */
   tagline: string;
+  /** Number of seasons (TV shows only). */
+  numberOfSeasons?: number;
+  /** Season list (TV shows only — populated by getTVShowDetails). */
+  seasons?: TVSeasonInfo[];
 }
 
 function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
@@ -419,7 +423,84 @@ export const getTVShowDetails = async (id: string): Promise<Movie> => {
   // IMDb external ID
   show.imdbExternalId = res.data.external_ids?.imdb_id || '';
 
+  // Seasons list
+  show.numberOfSeasons = res.data.number_of_seasons || 0;
+  show.seasons = (res.data.seasons || [])
+    .filter((s: any) => s.season_number > 0)
+    .map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      season_number: s.season_number,
+      episode_count: s.episode_count,
+      poster_path: s.poster_path ? `${IMAGE_URL}${s.poster_path}` : null,
+      air_date: s.air_date || '',
+    }));
+
   return show;
+};
+
+/** Episode details for a single season. */
+export interface TVEpisode {
+  id: number;
+  episode_number: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  air_date: string;
+  runtime: number | null;
+  still_path: string | null;
+  vote_average: number;
+}
+
+export interface TVSeasonInfo {
+  id: number;
+  name: string;
+  season_number: number;
+  episode_count: number;
+  poster_path: string | null;
+  air_date: string;
+}
+
+export interface TVSeasonDetails {
+  id: number;
+  name: string;
+  season_number: number;
+  episodes: TVEpisode[];
+  poster_path: string | null;
+  air_date: string;
+}
+
+/** Fetch all episodes for a specific season of a TV show. */
+export const getTVSeasonDetails = async (
+  showId: string,
+  seasonNumber: number
+): Promise<TVSeasonDetails> => {
+  const res = await api.get(`/tv/${showId}/season/${seasonNumber}`, {
+    params: { api_key: API_KEY },
+  });
+
+  return {
+    id: res.data.id,
+    name: res.data.name || `Season ${seasonNumber}`,
+    season_number: res.data.season_number,
+    episodes: (res.data.episodes || []).map((ep: any) => ({
+      id: ep.id,
+      episode_number: ep.episode_number,
+      season_number: ep.season_number,
+      name: ep.name || `Episode ${ep.episode_number}`,
+      overview: ep.overview || '',
+      air_date: ep.air_date || '',
+      runtime: ep.runtime ?? null,
+      still_path: ep.still_path
+        ? `https://image.tmdb.org/t/p/w300${ep.still_path}`
+        : null,
+      vote_average: ep.vote_average || 0,
+    })),
+    poster_path: res.data.poster_path
+      ? `${IMAGE_URL}${res.data.poster_path}`
+      : null,
+    air_date: res.data.air_date || '',
+  };
 };
 
 /** Fetch details for either a movie or a TV/anime item based on contentType. */
