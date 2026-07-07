@@ -16,6 +16,7 @@ import SplashScreen from '../screens/SplashScreen';
 import FamilyModeSettingsScreen from '../screens/FamilyModeSettingsScreen';
 import FamilyModePinScreen from '../screens/FamilyModePinScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
+import CinemaQuizScreen from '../screens/CinemaQuizScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
 import FollowersScreen from '../screens/FollowersScreen';
 import FollowingScreen from '../screens/FollowingScreen';
@@ -96,6 +97,7 @@ const ProfileStack = () => (
     <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
     <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} options={{ title: 'My Favorites' }} />
     <Stack.Screen name="AchievementsScreen" component={AchievementsScreen} options={{ title: 'Achievements' }} />
+    <Stack.Screen name="CinemaQuizScreen" component={CinemaQuizScreen as AnyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
     {socialScreens}

@@ -343,6 +343,24 @@ const ProfileScreen = ({ navigation }: any) => {
             <Ionicons name="chevron-forward" size={18} color="#555" />
           </TouchableOpacity>
 
+          {/* Cinema Quiz — اختبر ذاكرتك السينمائية */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('CinemaQuizScreen')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <View style={styles.dailyRewardIconWrap}>
+                <Text style={styles.dailyRewardIconEmoji}>🧠</Text>
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>اختبر ذاكرتك السينمائية</Text>
+                <Text style={styles.settingValue}>10 أسئلة يومياً من مشاهداتك</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+          </TouchableOpacity>
+
           {/* Daily Reward — الصندوق اليومي */}
           <TouchableOpacity
             style={styles.settingItem}
