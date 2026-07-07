@@ -495,7 +495,10 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
     const genres = movie.Genre
       ? movie.Genre.split(',').map((g: string) => g.trim())
       : [];
-    trackContentWatched({ imdbID: movieId, contentType: 'tv', genres }).catch(() => {});
+    // Use a per-episode dedup key (seriesId + season + episode) so each distinct
+    // episode earns its own XP within the session — not blocked by the series key.
+    const episodeKey = `${movieId}_s${season}e${episode.episode_number}`;
+    trackContentWatched({ imdbID: episodeKey, contentType: 'tv', genres, isNewEpisode: true }).catch(() => {});
     navigation.navigate('Player', {
       movieId,
       title: movie.Title,

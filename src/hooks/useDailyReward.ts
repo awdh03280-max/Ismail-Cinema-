@@ -6,10 +6,11 @@
  * - Exposes a live countdown string that refreshes every second.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { doc, getDoc, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useXP } from '../context/XPContext';
+import { AchievementId } from '../types/achievements';
 
 // ── Reward pool ───────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ export interface DailyRewardState {
 
 export function useDailyReward(): DailyRewardState {
   const { user } = useAuth();
-  const { awardXP } = useXP();
+  const { awardXP, unlockAchievement } = useXP();
 
   const [canClaim, setCanClaim] = useState(false);
   const [nextClaimAt, setNextClaimAt] = useState<number | null>(null);
@@ -173,19 +174,8 @@ export function useDailyReward(): DailyRewardState {
       if (reward.kind === 'xp' && reward.xp) {
         await awardXP(reward.xp);
       } else if (reward.kind === 'badge' && reward.badgeId) {
-        // Write badge achievement directly (same idempotency pattern as XPContext)
-        await runTransaction(db, async (txn) => {
-          const snap = await txn.get(userRef);
-          if (!snap.exists()) return;
-          const d = snap.data() as Record<string, any>;
-          if (d?.achievements?.[reward.badgeId!]) return; // already has it
-          txn.update(userRef, {
-            [`achievements.${reward.badgeId}`]: {
-              unlockedAt: now,
-              xpAwarded: 0,
-            },
-          });
-        });
+        // Route through context so the unlock toast fires automatically
+        await unlockAchievement(reward.badgeId as AchievementId);
       }
 
       setLastReward(reward);
@@ -198,7 +188,7 @@ export function useDailyReward(): DailyRewardState {
     } finally {
       setClaiming(false);
     }
-  }, [user, canClaim, claiming, awardXP]);
+  }, [user, canClaim, claiming, awardXP, unlockAchievement]);
 
   return { canClaim, countdown, claiming, lastReward, claimReward };
 }

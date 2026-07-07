@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useXP } from '../context/XPContext';
 import { Achievement, AchievementCategory, AchievementId } from '../types/achievements';
 import { colors } from '../theme/colors';
-import { XP_PER_LEVEL } from '../data/achievements';
+import { XP_PER_LEVEL, MAX_LEVEL } from '../data/achievements';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -247,7 +247,7 @@ const AchievementsScreen: React.FC = () => {
     Animated.timing(headerAnim, {
       toValue: 1,
       duration: 500,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, []);
 
@@ -295,7 +295,9 @@ const AchievementsScreen: React.FC = () => {
                 <View style={styles.xpBar}>
                   <View style={[styles.xpBarFill, { width: xpBarWidth as any }]} />
                 </View>
-                <Text style={styles.xpNextLabel}>{xpToNextLevel} XP to next level</Text>
+                <Text style={styles.xpNextLabel}>
+                  {level >= MAX_LEVEL ? '✨ Max Level Reached' : `${xpToNextLevel} XP to next level`}
+                </Text>
               </View>
 
               <View style={styles.xpRight}>
@@ -308,17 +310,17 @@ const AchievementsScreen: React.FC = () => {
             </View>
 
             {/* Overall progress */}
-            <View style={styles.overallBar}>
-              <View
-                style={[
-                  styles.overallBarFill,
-                  { width: `${Math.round((unlockedCount / totalCount) * 100)}%` as any },
-                ]}
-              />
-            </View>
-            <Text style={styles.overallLabel}>
-              {Math.round((unlockedCount / totalCount) * 100)}% Complete
-            </Text>
+            {(() => {
+              const pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+              return (
+                <>
+                  <View style={styles.overallBar}>
+                    <View style={[styles.overallBarFill, { width: `${pct}%` as any }]} />
+                  </View>
+                  <Text style={styles.overallLabel}>{pct}% Complete</Text>
+                </>
+              );
+            })()}
           </LinearGradient>
           <View style={styles.xpCardGoldBorder} />
         </Animated.View>

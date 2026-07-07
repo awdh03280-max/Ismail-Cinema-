@@ -29,6 +29,8 @@ const initials = (name: string) =>
   name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
 
 const formatTime = (ms: number): string => {
+  // Guard against missing/zero timestamps (Firestore doc not yet written)
+  if (!ms || ms < 1_000_000) return '';
   const diff = Date.now() - ms;
   if (diff < 60_000) return 'just now';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
@@ -47,8 +49,8 @@ const NotificationRow: React.FC<{
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue: 0, duration: 320, delay: animDelay, useNativeDriver: false }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 320, delay: animDelay, useNativeDriver: false }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 320, delay: animDelay, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 320, delay: animDelay, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -103,7 +105,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
-    Animated.timing(headerAnim, { toValue: 1, duration: 400, useNativeDriver: false }).start();
+    Animated.timing(headerAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     // Mark all as read when screen opens
     markNotificationsRead();
   }, []);

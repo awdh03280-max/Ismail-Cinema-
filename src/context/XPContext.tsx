@@ -87,6 +87,9 @@ interface XPContextInternal extends XPContextType {
   pendingUnlocks: PendingUnlock[];
   dismissUnlock: () => void;
   achievementDates: Partial<Record<AchievementId, number>>;
+  /** High-level wrapper: unlock an achievement using current context state.
+   *  Triggers the toast queue automatically — use instead of raw Firestore writes. */
+  unlockAchievement: (id: AchievementId) => Promise<void>;
 }
 
 const XPContext = createContext<XPContextInternal | null>(null);
@@ -511,6 +514,16 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   }, [userRef, user, maybeUnlock, awardXP, checkLevelAchievements]);
 
+  // ── Convenience wrapper: unlock by id using current local state ──────────
+  // External callers (e.g. useDailyReward) use this instead of raw Firestore
+  // writes so they automatically get the pendingUnlocks toast queue.
+  const unlockAchievement = useCallback(
+    async (id: AchievementId): Promise<void> => {
+      await maybeUnlock(id, unlockedIds, xp, stats);
+    },
+    [maybeUnlock, unlockedIds, xp, stats]
+  );
+
   // ── Sync stats from Firestore (pull-refresh, no writes) ───────────────────
   // Use after an external transaction already committed new XP/level to Firestore
   // so local React state reflects the server values without doing another write.
@@ -555,6 +568,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         trackComment,
         awardXP,
         syncStats,
+        unlockAchievement,
         isLoading,
         pendingUnlocks,
         dismissUnlock,
