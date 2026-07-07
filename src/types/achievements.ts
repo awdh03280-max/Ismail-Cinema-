@@ -39,7 +39,8 @@ export type AchievementId =
   | 'level_25'
   | 'level_50'
   | 'level_100'
-  | 'level_150';
+  | 'level_150'
+  | 'daily_reward_badge';
 
 /** Stored in Firestore under users/{uid}.achievements */
 export interface AchievementRecord {
@@ -82,6 +83,8 @@ export interface XPContextType {
     isNewEpisode?: boolean;
   }) => Promise<void>;
   trackComment: () => Promise<void>;
+  /** Award XP directly (e.g. from Daily Reward). Updates Firestore + local state. */
+  awardXP: (amount: number) => Promise<number>;
   isLoading: boolean;
   /** Full achievement records keyed by id — includes unlock timestamps */
   achievementDates: Partial<Record<AchievementId, number>>;

@@ -57,7 +57,7 @@ function getProgress(
   if (unlockedIds.has(achievement.id)) return 1;
   if (!achievement.target) return 0;
 
-  const stat: Record<AchievementId, number> = {
+  const stat: Partial<Record<AchievementId, number>> = {
     first_movie: stats.moviesWatched,
     movies_10: stats.moviesWatched,
     movies_50: stats.moviesWatched,
@@ -76,6 +76,8 @@ function getProgress(
     level_50: stats.level,
     level_100: stats.level,
     level_150: stats.level,
+    // daily_reward_badge has no numeric progress — it's claimed or not
+    daily_reward_badge: 0,
   };
 
   const current = stat[achievement.id] ?? 0;

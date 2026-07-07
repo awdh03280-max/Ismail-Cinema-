@@ -20,6 +20,8 @@ import { useFamilyMode } from '../context/FamilyModeContext';
 import { useAuth } from '../context/AuthContext';
 import { useXP } from '../context/XPContext';
 import { useFollow } from '../context/FollowContext';
+import { useDailyReward } from '../hooks/useDailyReward';
+import DailyRewardModal from '../components/DailyRewardModal';
 
 // Small inline components that safely call hooks inside provider tree
 
@@ -130,9 +132,11 @@ const ProfileScreen = ({ navigation }: any) => {
   const [currentLanguage, setCurrentLanguage] = useState('en');
   const [darkMode] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [rewardModalVisible, setRewardModalVisible] = useState(false);
 
   const { isEnabled, isUnlocked } = useFamilyMode();
   const { user, userProfile, logout } = useAuth();
+  const dailyReward = useDailyReward();
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
@@ -339,6 +343,33 @@ const ProfileScreen = ({ navigation }: any) => {
             <Ionicons name="chevron-forward" size={18} color="#555" />
           </TouchableOpacity>
 
+          {/* Daily Reward — الصندوق اليومي */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setRewardModalVisible(true)}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <View style={styles.dailyRewardIconWrap}>
+                <Text style={styles.dailyRewardIconEmoji}>🎁</Text>
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>الصندوق اليومي</Text>
+                <Text style={[styles.settingValue, dailyReward.canClaim && styles.rewardReadyText]}>
+                  {dailyReward.canClaim
+                    ? '✨ مكافأتك جاهزة! اضغط للفتح'
+                    : `التالية خلال ${dailyReward.countdown}`}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.settingRight}>
+              {dailyReward.canClaim && (
+                <View style={styles.rewardReadyDot} />
+              )}
+              <Ionicons name="chevron-forward" size={18} color="#555" />
+            </View>
+          </TouchableOpacity>
+
           {/* Social — Activity / Notifications */}
           <TouchableOpacity
             style={[styles.settingItem, styles.settingItemLast]}
@@ -407,6 +438,16 @@ const ProfileScreen = ({ navigation }: any) => {
             <Text style={styles.aboutValue}>{t('developer_value')}</Text>
           </View>
         </View>
+
+        {/* ── Daily Reward Modal ─────────────────────────────────────────── */}
+        <DailyRewardModal
+          visible={rewardModalVisible}
+          onClose={() => setRewardModalVisible(false)}
+          onClaim={dailyReward.claimReward}
+          canClaim={dailyReward.canClaim}
+          countdown={dailyReward.countdown}
+          claiming={dailyReward.claiming}
+        />
 
         {/* ── Sign out ───────────────────────────────────────────────────── */}
         <View style={styles.signOutSection}>
@@ -500,6 +541,28 @@ const styles = StyleSheet.create({
   fmDot: { width: 8, height: 8, borderRadius: 4 },
   fmDotRed: { backgroundColor: '#e50914' },
   fmDotGreen: { backgroundColor: '#2db52d' },
+
+  // Daily Reward card
+  dailyRewardIconWrap: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dailyRewardIconEmoji: {
+    fontSize: 22,
+  },
+  rewardReadyText: {
+    color: '#d4af37',
+    fontWeight: '700',
+  },
+  rewardReadyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#d4af37',
+    marginRight: 4,
+  },
 
   aboutItem: {
     paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1a1a2e',

@@ -519,6 +519,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         allAchievements: ACHIEVEMENTS,
         trackContentWatched,
         trackComment,
+        awardXP,
         isLoading,
         pendingUnlocks,
         dismissUnlock,

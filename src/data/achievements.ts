@@ -172,6 +172,15 @@ export const ACHIEVEMENTS: Achievement[] = [
     category: 'level',
     target: 150,
   },
+  // ── Daily Reward ─────────────────────────────────────────────────────────────
+  {
+    id: 'daily_reward_badge',
+    name: 'الصندوق الذهبي',
+    description: 'فزت بالشارة النادرة من الصندوق اليومي!',
+    icon: 'gift',
+    xpReward: 0,
+    category: 'streak',
+  },
 ];
 
 /** Lookup map for quick access by ID */
