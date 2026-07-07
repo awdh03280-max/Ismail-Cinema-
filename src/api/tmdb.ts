@@ -676,6 +676,43 @@ export const getMovieOfTheDay = async (): Promise<Movie> => {
   return getMovieDetails(picked.id.toString());
 };
 
+/**
+ * Discover movies by raw TMDB genre ID list — used by the Mufakir AI assistant.
+ * Results are popularity-sorted and limited to the first page (≈20 titles).
+ */
+export const discoverMoviesByGenreIds = async (
+  genreIds: number[],
+  sortBy = 'popularity.desc',
+): Promise<Movie[]> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_genres: genreIds.join(','),
+      sort_by: sortBy,
+      include_adult: false,
+    },
+  });
+  return (res.data.results || []).map((m: any) => mapMovie(m, 'movie'));
+};
+
+/**
+ * Discover TV shows by raw TMDB genre ID list — used by the Mufakir AI assistant.
+ */
+export const discoverTVByGenreIds = async (
+  genreIds: number[],
+  sortBy = 'popularity.desc',
+): Promise<Movie[]> => {
+  const res = await api.get('/discover/tv', {
+    params: {
+      api_key: API_KEY,
+      with_genres: genreIds.join(','),
+      sort_by: sortBy,
+      include_adult: false,
+    },
+  });
+  return (res.data.results || []).map((m: any) => mapMovie(m, 'tv'));
+};
+
 /** Newly released movies — "Recently Added" row. */
 export const getRecentlyAdded = async (): Promise<Movie[]> => {
   const res = await api.get('/movie/now_playing', {

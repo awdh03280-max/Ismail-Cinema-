@@ -23,6 +23,7 @@ import SectionTitle from '../components/SectionTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HeroBanner from '../components/HeroBanner';
 import MovieOfTheDay from '../components/MovieOfTheDay';
+import MufarkirCard from '../components/MufarkirCard';
 import {
   addToFavorites,
   removeFromFavorites,
@@ -220,6 +221,8 @@ const HomeScreen = ({ navigation }: any) => {
         </View>
 
         <MovieOfTheDay onPress={handleMoviePress} />
+
+        <MufarkirCard onMoviePress={handleMoviePress} />
 
         <HeroBanner
           movies={hero}
