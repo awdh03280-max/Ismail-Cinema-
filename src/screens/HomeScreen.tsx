@@ -27,7 +27,7 @@ import MufarkirCard from '../components/MufarkirCard';
 import {
   addToFavorites,
   removeFromFavorites,
-  isFavorite,
+  getFavorites,
   getContinueWatching,
   ContinueWatchingMovie,
 } from '../storage/storage';
@@ -135,13 +135,8 @@ const HomeScreen = ({ navigation }: any) => {
       setHero(filteredHero);
       setSections(filteredSections);
 
-      const allMovies = [filteredHero, ...filteredSections.map(s => s.movies)].flat();
-      const favSet = new Set<string>();
-      for (const movie of allMovies) {
-        if (await isFavorite(movie.imdbID)) {
-          favSet.add(movie.imdbID);
-        }
-      }
+      const allFavs = await getFavorites();
+      const favSet = new Set(allFavs.map(f => f.imdbID));
       setFavorites(favSet);
     } catch (error) {
       console.error(error);
@@ -161,16 +156,18 @@ const HomeScreen = ({ navigation }: any) => {
     setRefreshing(false);
   };
 
-  const handleMoviePress = (movie: Movie) => {
+  const handleMoviePress = useCallback((movie: Movie) => {
     navigation.navigate('MovieDetails', { movieId: movie.imdbID, contentType: movie.contentType });
-  };
+  }, [navigation]);
 
-  const handleFavoritePress = async (movie: Movie) => {
+  const handleFavoritePress = useCallback(async (movie: Movie) => {
     if (favorites.has(movie.imdbID)) {
       await removeFromFavorites(movie.imdbID);
-      const next = new Set(favorites);
-      next.delete(movie.imdbID);
-      setFavorites(next);
+      setFavorites(prev => {
+        const next = new Set(prev);
+        next.delete(movie.imdbID);
+        return next;
+      });
     } else {
       await addToFavorites({
         imdbID: movie.imdbID,
@@ -179,11 +176,13 @@ const HomeScreen = ({ navigation }: any) => {
         contentType: movie.contentType,
         addedAt: Date.now(),
       });
-      const next = new Set(favorites);
-      next.add(movie.imdbID);
-      setFavorites(next);
+      setFavorites(prev => {
+        const next = new Set(prev);
+        next.add(movie.imdbID);
+        return next;
+      });
     }
-  };
+  }, [favorites]);
 
   if (loading) return <LoadingSpinner />;
 

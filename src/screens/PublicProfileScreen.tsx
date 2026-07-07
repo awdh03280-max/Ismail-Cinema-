@@ -16,13 +16,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { doc, getDoc, onSnapshot, query, collection, where } from 'firebase/firestore';
+import { onSnapshot, query, collection, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useFollow, fetchFollowingIds } from '../context/FollowContext';
 import { colors } from '../theme/colors';
 import FollowButton from '../components/FollowButton';
-import { FollowDoc } from '../types/social';
 
 interface Props {
   route: { params: { uid: string; displayName: string; photoURL?: string | null } };

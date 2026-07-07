@@ -436,8 +436,9 @@ export function useCinemaQuiz(): CinemaQuizState {
         });
 
         await awardXP(xpEarned);
-      } catch (err: any) {
-        if (err?.code === 'ALREADY_DONE' || err?.message === 'ALREADY_DONE') {
+      } catch (err: unknown) {
+        const e = err as { code?: string; message?: string };
+        if (e?.code === 'ALREADY_DONE' || e?.message === 'ALREADY_DONE') {
           // Race: another session beat us — show already_done instead
           try {
             const freshSnap = await getDoc(doc(db, 'users', user.uid));

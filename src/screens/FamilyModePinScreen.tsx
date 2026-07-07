@@ -6,7 +6,7 @@
  *       'disable' → verify PIN to disable Family Mode
  *       'change'  → 3-step: old PIN → new PIN → confirm new PIN
  */
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { ND } from '../utils/animation';
 import {
   View,

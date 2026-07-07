@@ -50,7 +50,7 @@ const XPLevelCard: React.FC = () => {
 
       {/* Progress bar */}
       <View style={xpStyles.barTrack}>
-        <View style={[xpStyles.barFill, { width: `${Math.round(xpProgress * 100)}%` as any }]} />
+        <View style={[xpStyles.barFill, { width: `${Math.round(xpProgress * 100)}%` as `${number}%` }]} />
       </View>
       <View style={xpStyles.barLabels}>
         <Text style={xpStyles.barLabelLeft}>Level {level}</Text>

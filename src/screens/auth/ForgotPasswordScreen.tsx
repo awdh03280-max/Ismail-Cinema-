@@ -13,9 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, getAuthErrorMessage } from '../../context/AuthContext';
 import AuthInput from '../../components/auth/AuthInput';
-
-const isValidEmail = (v: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+import { isValidEmail } from '../../utils/validation';
 
 const ForgotPasswordScreen = ({ navigation }: any) => {
   const { forgotPassword } = useAuth();

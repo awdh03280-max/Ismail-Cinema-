@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useXP } from '../context/XPContext';
 import { Achievement, AchievementCategory, AchievementId } from '../types/achievements';
 import { colors } from '../theme/colors';
-import { XP_PER_LEVEL, MAX_LEVEL } from '../data/achievements';
+import { MAX_LEVEL } from '../data/achievements';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 

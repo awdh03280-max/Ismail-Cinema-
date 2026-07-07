@@ -32,6 +32,7 @@ import {
   signInWithCredential,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import type { Timestamp, FieldValue } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -42,8 +43,8 @@ export interface UserProfile {
   displayName: string;
   photoURL: string | null;
   provider: 'email' | 'google';
-  createdAt: any;
-  updatedAt: any;
+  createdAt: Timestamp | FieldValue | null;
+  updatedAt: Timestamp | FieldValue | null;
 }
 
 interface AuthContextType {

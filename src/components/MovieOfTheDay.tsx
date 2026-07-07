@@ -112,7 +112,7 @@ const MovieOfTheDay: React.FC<Props> = ({ onPress }) => {
           await AsyncStorage.removeItem(`${CACHE_KEY_PREFIX}${yesterday}`);
         }
       } catch (err) {
-        console.warn('MovieOfTheDay fetch error:', err);
+        console.error('MovieOfTheDay fetch error:', err);
         if (!cancelled) {
           setLoading(false);
           shimmerAnim.current?.stop();

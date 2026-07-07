@@ -9,7 +9,7 @@
  *
  * Unchanged: Movie Player, Google Sign-In, Firebase config.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,

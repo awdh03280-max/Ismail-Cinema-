@@ -16,11 +16,7 @@ import { useAuth, getAuthErrorMessage } from '../../context/AuthContext';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import AuthInput from '../../components/auth/AuthInput';
 import SocialButton from '../../components/auth/SocialButton';
-
-// ── Validation ─────────────────────────────────────────────────────────────
-
-const isValidEmail = (v: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+import { isValidEmail } from '../../utils/validation';
 
 const isStrongPassword = (v: string) =>
   v.length >= 8 && /[A-Z]/.test(v) && /[0-9]/.test(v);

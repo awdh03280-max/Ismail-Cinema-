@@ -142,7 +142,7 @@ const MufarkirCard: React.FC<Props> = ({ onMoviePress }) => {
         useNativeDriver: ND,
       }).start();
     } catch (err) {
-      console.warn('Mufakir error:', err);
+      console.error('Mufakir error:', err);
       stopPulse();
       if (mounted.current) {
         setThinking(false);
