@@ -639,6 +639,43 @@ export const getTopRatedAnimation = async (): Promise<Movie[]> => {
     .map((m: any) => mapMovie(m, 'movie'));
 };
 
+/**
+ * Movie of the Day — deterministic pick based on UTC day index.
+ * Rotates through a curated pool of popular, highly-rated movies with backdrops.
+ * Full details (including trailerKey) are fetched for the winner.
+ */
+export const getMovieOfTheDay = async (): Promise<Movie> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      sort_by: 'popularity.desc',
+      'vote_average.gte': 7.0,
+      'vote_count.gte': 3000,
+      page: 1,
+    },
+  });
+
+  const candidates = (res.data.results || []).filter(
+    (m: any) => m.backdrop_path,
+  );
+
+  if (!candidates.length) {
+    // Fallback: trending #1
+    const fallbackRes = await api.get('/trending/movie/week', {
+      params: { api_key: API_KEY },
+    });
+    const fallback = fallbackRes.data.results?.[0];
+    if (!fallback) throw new Error('No movie of the day candidates found');
+    return getMovieDetails(fallback.id.toString());
+  }
+
+  // Rotate once per UTC day — same movie for every user on the same day.
+  const dayIndex = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+  const picked = candidates[dayIndex % candidates.length];
+
+  return getMovieDetails(picked.id.toString());
+};
+
 /** Newly released movies — "Recently Added" row. */
 export const getRecentlyAdded = async (): Promise<Movie[]> => {
   const res = await api.get('/movie/now_playing', {
