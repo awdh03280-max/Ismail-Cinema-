@@ -191,16 +191,32 @@ export const ACHIEVEMENT_MAP = new Map(
 /** XP per level step */
 export const XP_PER_LEVEL = 500;
 
-/** Compute level from total XP (level starts at 1) */
+/** Maximum level cap */
+export const MAX_LEVEL = 150;
+
+/** Compute level from total XP (level starts at 1, caps at MAX_LEVEL) */
 export const xpToLevel = (xp: number): number =>
-  Math.floor(xp / XP_PER_LEVEL) + 1;
+  Math.min(Math.floor(xp / XP_PER_LEVEL) + 1, MAX_LEVEL);
 
 /** XP needed to reach a given level */
 export const levelToXP = (level: number): number =>
   (level - 1) * XP_PER_LEVEL;
 
-/** XP progress within current level (0–1) */
+/** XP progress within current level (0–1). Returns 1 at max level. */
 export const xpLevelProgress = (xp: number): number => {
+  if (xpToLevel(xp) >= MAX_LEVEL) return 1;
   const xpInLevel = xp % XP_PER_LEVEL;
   return xpInLevel / XP_PER_LEVEL;
+};
+
+/** XP remaining to reach next level. Returns 0 at max level. */
+export const xpToNextLevelAmount = (xp: number): number => {
+  if (xpToLevel(xp) >= MAX_LEVEL) return 0;
+  return XP_PER_LEVEL - (xp % XP_PER_LEVEL);
+};
+
+/** XP accumulated within the current level. */
+export const xpInCurrentLevel = (xp: number): number => {
+  if (xpToLevel(xp) >= MAX_LEVEL) return XP_PER_LEVEL;
+  return xp % XP_PER_LEVEL;
 };

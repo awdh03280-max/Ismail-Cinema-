@@ -34,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   collection,
   doc,
+  getDoc,
   addDoc,
   setDoc,
   deleteDoc,
@@ -44,10 +45,13 @@ import {
   orderBy,
   serverTimestamp,
   updateDoc,
+  runTransaction,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { useXP } from '../context/XPContext';
+import { xpToLevel } from '../data/achievements';
 import { colors } from '../theme/colors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -166,7 +170,46 @@ type Screen = 'home' | 'lobby' | 'join';
 
 const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
   const { user, userProfile } = useAuth();
+  const { syncStats } = useXP();
   const params = route.params ?? {};
+
+  /**
+   * Award 25 XP for Watch Party participation in a single atomic transaction.
+   * The daily date marker, new XP, and new level are all written together —
+   * so a network failure cannot consume the daily claim without granting XP.
+   * After a successful write, syncStats() pulls the committed values into the
+   * local XP context so the Profile card reflects them immediately.
+   */
+  const PARTY_XP = 25;
+  const awardPartyXP = useCallback(async () => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+    try {
+      let didAward = false;
+      await runTransaction(db, async (txn) => {
+        const snap = await txn.get(userRef);
+        const data = snap.exists() ? (snap.data() as Record<string, any>) : {};
+        const lastDate: string = data?.watchPartyXP?.lastAwardedDate ?? '';
+        if (lastDate === today) return; // already claimed today — no-op
+        const currentXp: number = data.xp ?? 0;
+        const newXp = currentXp + PARTY_XP;
+        const newLevel = xpToLevel(newXp);
+        txn.set(
+          userRef,
+          { xp: newXp, level: newLevel, watchPartyXP: { lastAwardedDate: today } },
+          { merge: true }
+        );
+        didAward = true;
+      });
+      // Pull committed XP into local context state (no extra write)
+      if (didAward) {
+        await syncStats();
+      }
+    } catch (err) {
+      console.error('[WatchParty] XP award error:', err);
+    }
+  }, [user, syncStats]);
 
   const [screen, setScreen] = useState<Screen>('home');
   const [partyId, setPartyId] = useState<string | null>(null);
@@ -276,6 +319,8 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
       setPartyId(partyRef.id);
       subscribeToParty(partyRef.id);
       setScreen('lobby');
+      // Award XP for hosting a watch party (once per day, Firestore-guarded)
+      awardPartyXP();
     } catch (err) {
       console.error('[WatchParty] create error:', err);
       Alert.alert('Error', 'Failed to create party. Please try again.');
@@ -315,6 +360,8 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
       setPartyId(pid);
       subscribeToParty(pid);
       setScreen('lobby');
+      // Award XP for joining a watch party (once per day, Firestore-guarded)
+      awardPartyXP();
     } catch (err) {
       console.error('[WatchParty] join error:', err);
       Alert.alert('Error', 'Failed to join party. Please try again.');

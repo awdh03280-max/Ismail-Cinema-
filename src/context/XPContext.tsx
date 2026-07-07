@@ -33,9 +33,10 @@ import {
 import {
   ACHIEVEMENTS,
   ACHIEVEMENT_MAP,
-  XP_PER_LEVEL,
   xpToLevel,
   xpLevelProgress,
+  xpToNextLevelAmount,
+  xpInCurrentLevel,
 } from '../data/achievements';
 
 // ── Firestore data shape ──────────────────────────────────────────────────────
@@ -223,8 +224,18 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     async (amount: number): Promise<number> => {
       if (!userRef || amount <= 0) return xp;
       try {
-        await updateDoc(userRef, { xp: increment(amount) });
-        const newXp = xp + amount;
+        // Use a transaction so xp + level are always computed from the server
+        // value — safe against concurrent awards on the same or another device.
+        let newXp = xp;
+        await runTransaction(db, async (txn) => {
+          const snap = await txn.get(userRef);
+          const currentXp: number = snap.exists()
+            ? ((snap.data() as FirestoreUserData).xp ?? 0)
+            : 0;
+          newXp = currentXp + amount;
+          const newLevel = xpToLevel(newXp);
+          txn.update(userRef, { xp: newXp, level: newLevel });
+        });
         const newLevel = xpToLevel(newXp);
         setXp(newXp);
         setLevel(newLevel);
@@ -272,8 +283,10 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           };
           const updates: Record<string, unknown> = { [`achievements.${id}`]: record };
           if (achievement.xpReward > 0) {
-            updates.xp = increment(achievement.xpReward);
             xpAfterTransaction = (data.xp ?? 0) + achievement.xpReward;
+            // Write the computed level alongside xp so Firestore stays in sync
+            updates.xp = xpAfterTransaction;
+            updates.level = xpToLevel(xpAfterTransaction);
           }
           txn.update(userRef, updates);
           actuallyUnlocked = true;
@@ -498,13 +511,33 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   }, [userRef, user, maybeUnlock, awardXP, checkLevelAchievements]);
 
+  // ── Sync stats from Firestore (pull-refresh, no writes) ───────────────────
+  // Use after an external transaction already committed new XP/level to Firestore
+  // so local React state reflects the server values without doing another write.
+  const syncStats = useCallback(async (): Promise<void> => {
+    if (!userRef) return;
+    try {
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) return;
+      const data = snap.data() as FirestoreUserData;
+      const freshXp = data.xp ?? 0;
+      const freshLevel = xpToLevel(freshXp);
+      setXp(freshXp);
+      setLevel(freshLevel);
+      setStats(s => ({ ...s, xp: freshXp, level: freshLevel }));
+    } catch (err) {
+      console.error('[XP] syncStats error:', err);
+    }
+  }, [userRef]);
+
   // ── Dismiss top unlock toast ───────────────────────────────────────────────
   const dismissUnlock = useCallback(() => {
     setPendingUnlocks(q => q.slice(1));
   }, []);
 
-  const xpToNextLevel = XP_PER_LEVEL - (xp % XP_PER_LEVEL);
+  const xpToNextLevel = xpToNextLevelAmount(xp);
   const xpProgress = xpLevelProgress(xp);
+  const xpInLevel = xpInCurrentLevel(xp);
 
   return (
     <XPContext.Provider
@@ -513,6 +546,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         level,
         xpToNextLevel,
         xpProgress,
+        xpInLevel,
         stats,
         unlockedIds,
         achievementDates,
@@ -520,6 +554,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         trackContentWatched,
         trackComment,
         awardXP,
+        syncStats,
         isLoading,
         pendingUnlocks,
         dismissUnlock,

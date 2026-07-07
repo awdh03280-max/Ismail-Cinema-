@@ -25,6 +25,113 @@ import DailyRewardModal from '../components/DailyRewardModal';
 
 // Small inline components that safely call hooks inside provider tree
 
+// ── XP Level Card ─────────────────────────────────────────────────────────────
+const XPLevelCard: React.FC = () => {
+  const { xp, level, xpInLevel, xpToNextLevel, xpProgress } = useXP();
+  const isMaxLevel = level >= 150;
+
+  return (
+    <View style={xpStyles.card}>
+      {/* Level badge + XP total */}
+      <View style={xpStyles.topRow}>
+        <View style={xpStyles.levelBadge}>
+          <Text style={xpStyles.levelLabel}>LVL</Text>
+          <Text style={xpStyles.levelNumber}>{level}</Text>
+        </View>
+        <View style={xpStyles.xpInfo}>
+          <Text style={xpStyles.xpTotal}>{xp.toLocaleString()} XP</Text>
+          <Text style={xpStyles.xpSub}>
+            {isMaxLevel
+              ? '✨ Max Level Reached'
+              : `${xpInLevel} / 500 XP · ${xpToNextLevel} to Level ${level + 1}`}
+          </Text>
+        </View>
+      </View>
+
+      {/* Progress bar */}
+      <View style={xpStyles.barTrack}>
+        <View style={[xpStyles.barFill, { width: `${Math.round(xpProgress * 100)}%` as any }]} />
+      </View>
+      <View style={xpStyles.barLabels}>
+        <Text style={xpStyles.barLabelLeft}>Level {level}</Text>
+        {!isMaxLevel && <Text style={xpStyles.barLabelRight}>Level {level + 1}</Text>}
+      </View>
+    </View>
+  );
+};
+
+const xpStyles = StyleSheet.create({
+  card: {
+    width: '90%',
+    backgroundColor: '#0d0d0d',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
+    padding: 14,
+    marginTop: 14,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  levelBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1a1000',
+    borderWidth: 2,
+    borderColor: '#d4af37',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelLabel: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#d4af37',
+    letterSpacing: 1,
+  },
+  levelNumber: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#d4af37',
+    lineHeight: 22,
+  },
+  xpInfo: {
+    flex: 1,
+  },
+  xpTotal: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  xpSub: {
+    fontSize: 11,
+    color: '#888',
+    marginTop: 2,
+  },
+  barTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1e1e1e',
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: '#d4af37',
+    minWidth: 4,
+  },
+  barLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  barLabelLeft: { fontSize: 10, color: '#555' },
+  barLabelRight: { fontSize: 10, color: '#555' },
+});
+
 const AchievementsSummary: React.FC = () => {
   const { unlockedIds, allAchievements, level } = useXP();
   return (
@@ -236,6 +343,9 @@ const ProfileScreen = ({ navigation }: any) => {
 
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileEmail}>{displayEmail}</Text>
+
+          {/* XP level card */}
+          <XPLevelCard />
 
           {/* Social stats row */}
           <SocialStatsRow navigation={navigation} uid={user?.uid ?? ''} />

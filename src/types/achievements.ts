@@ -71,7 +71,8 @@ export interface XPContextType {
   xp: number;
   level: number;
   xpToNextLevel: number;
-  xpProgress: number; // 0–1 fraction within current level
+  xpProgress: number;   // 0–1 fraction within current level
+  xpInLevel: number;    // raw XP accumulated within the current level
   stats: UserStats;
   unlockedIds: Set<AchievementId>;
   allAchievements: Achievement[];
@@ -85,6 +86,11 @@ export interface XPContextType {
   trackComment: () => Promise<void>;
   /** Award XP directly (e.g. from Daily Reward). Updates Firestore + local state. */
   awardXP: (amount: number) => Promise<number>;
+  /**
+   * Pull-refresh: re-read the Firestore user doc and update local XP/level state.
+   * Use after an external transaction has already written new XP to Firestore.
+   */
+  syncStats: () => Promise<void>;
   isLoading: boolean;
   /** Full achievement records keyed by id — includes unlock timestamps */
   achievementDates: Partial<Record<AchievementId, number>>;
