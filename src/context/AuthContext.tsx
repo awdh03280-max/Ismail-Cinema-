@@ -174,7 +174,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // ── Persistent session restore ─────────────────────────────────────────────
   useEffect(() => {
+    // Safety net: if Firebase never calls onAuthStateChanged (e.g. network issues
+    // on first load), unblock the splash screen after 8 seconds.
+    const fallbackTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 8000);
+
     const unsubscribe = onAuthStateChanged(auth, async fbUser => {
+      clearTimeout(fallbackTimer);
       setUser(fbUser);
       if (fbUser) {
         try {
@@ -206,7 +213,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(fallbackTimer);
+      unsubscribe();
+    };
   }, []);
 
   // ── Email / Password Sign Up ───────────────────────────────────────────────
