@@ -8,7 +8,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTabletMode": true,
+      "supportsTablet": true,
       "bundleIdentifier": "com.ismailcinema.app",
       "buildNumber": "3"
     },
@@ -19,9 +19,6 @@
       },
       "package": "com.ismailcinema.app",
       "versionCode": 3,
-      "compileSdkVersion": 34,
-      "targetSdkVersion": 34,
-      "minSdkVersion": 23,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -29,9 +26,7 @@
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "allowBackup": false,
-      "softwareKeyboardLayoutMode": "pan",
-      "enableProguardInReleaseBuilds": true,
-      "enableShrinkResourcesInReleaseBuilds": true
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "favicon": "./assets/favicon.png",
