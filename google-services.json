@@ -7,7 +7,7 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:523983300969:android:31h5pceeel5ajteh",
+        "mobilesdk_app_id": "1:523983300969:android:ff4116b7c9e618a306b5f8",
         "android_client_info": {
           "package_name": "com.ismailcinema.app"
         }
@@ -18,7 +18,7 @@
           "client_type": 1,
           "android_info": {
             "package_name": "com.ismailcinema.app",
-            "certificate_hash": ""
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
           }
         },
         {
@@ -28,7 +28,7 @@
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBly9NyaYYik42sLEeHTTiuSu5h3qteVtY"
+          "current_key": "AIzaSyB_XkpnBFDomDGS8-SAcNCPzzODox4TBks"
         }
       ],
       "services": {
