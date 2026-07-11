@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "523983300969",
+    "project_id": "ismail-cinema",
+    "storage_bucket": "ismail-cinema.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:523983300969:android:31h5pceeel5ajteh",
+        "android_client_info": {
+          "package_name": "com.ismailcinema.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "523983300969-31h5pceeel5ajteh9k3r4cu9nlqj1di5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ismailcinema.app",
+            "certificate_hash": ""
+          }
+        },
+        {
+          "client_id": "523983300969-p53d2sq5bh2heg2kqohjbj1lad0rnfpu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBly9NyaYYik42sLEeHTTiuSu5h3qteVtY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "523983300969-p53d2sq5bh2heg2kqohjbj1lad0rnfpu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
