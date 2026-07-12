@@ -26,8 +26,44 @@ import MovieListScreen from '../screens/MovieListScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import AuthGate from '../components/AuthGate';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
+
+// ComponentType<any> because these screens use a loose `navigation: any` prop.
+// Full param-list types can be added per-screen in a future refactor.
+type AnyScreen = React.ComponentType<any>;
+
+// ── Auth-gated screen wrappers ─────────────────────────────────────────────
+// Browsing (Home/Search/Details/Player) never requires sign-in. Only these
+// user-specific features are protected: Favorites, Watch Party, Friends
+// (Followers/Following), Notifications. Wrapping here keeps each screen's
+// own code untouched.
+const GatedFavoritesScreen: AnyScreen = ({ navigation, ...rest }: any) => (
+  <AuthGate navigation={navigation} message="Sign in to view and manage your favorites.">
+    <FavoritesScreen navigation={navigation} {...rest} />
+  </AuthGate>
+);
+const GatedWatchPartyScreen: AnyScreen = ({ navigation, ...rest }: any) => (
+  <AuthGate navigation={navigation} message="Sign in to create or join a watch party.">
+    <WatchPartyScreen navigation={navigation} {...rest} />
+  </AuthGate>
+);
+const GatedFollowersScreen: AnyScreen = ({ navigation, ...rest }: any) => (
+  <AuthGate navigation={navigation} message="Sign in to see followers.">
+    <FollowersScreen navigation={navigation} {...rest} />
+  </AuthGate>
+);
+const GatedFollowingScreen: AnyScreen = ({ navigation, ...rest }: any) => (
+  <AuthGate navigation={navigation} message="Sign in to see who you follow.">
+    <FollowingScreen navigation={navigation} {...rest} />
+  </AuthGate>
+);
+const GatedNotificationsScreen: AnyScreen = ({ navigation, ...rest }: any) => (
+  <AuthGate navigation={navigation} message="Sign in to view your notifications.">
+    <NotificationsScreen navigation={navigation} {...rest} />
+  </AuthGate>
+);
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -49,18 +85,22 @@ const playerScreen = (
 );
 
 // ── Social screens (shared across stacks) ────────────────────────────────────
-// ComponentType<any> because these screens use a loose `navigation: any` prop.
-// Full param-list types can be added per-screen in a future refactor.
-type AnyScreen = React.ComponentType<any>;
-
+// Followers/Following/Notifications/WatchParty are auth-gated — browsing
+// stays open, but these user-specific features require sign-in.
+// Login/SignUp/ForgotPassword are included here too so the sign-in flow
+// (triggered from the Profile tab or from an AuthGate prompt) is reachable
+// from every stack, not just Profile.
 const socialScreens = (
   <>
     <Stack.Screen name="PublicProfile" component={PublicProfileScreen as AnyScreen} options={{ title: 'Profile' }} />
-    <Stack.Screen name="FollowersScreen" component={FollowersScreen as AnyScreen} options={{ title: 'Followers' }} />
-    <Stack.Screen name="FollowingScreen" component={FollowingScreen as AnyScreen} options={{ title: 'Following' }} />
-    <Stack.Screen name="NotificationsScreen" component={NotificationsScreen as AnyScreen} options={{ title: 'Activity' }} />
-    <Stack.Screen name="WatchParty" component={WatchPartyScreen as AnyScreen} options={{ title: 'Watch Party', headerShown: false }} />
+    <Stack.Screen name="FollowersScreen" component={GatedFollowersScreen} options={{ title: 'Followers' }} />
+    <Stack.Screen name="FollowingScreen" component={GatedFollowingScreen} options={{ title: 'Following' }} />
+    <Stack.Screen name="NotificationsScreen" component={GatedNotificationsScreen} options={{ title: 'Activity' }} />
+    <Stack.Screen name="WatchParty" component={GatedWatchPartyScreen} options={{ title: 'Watch Party', headerShown: false }} />
     <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: 'Movies' }} />
+    <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
+    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
   </>
 );
 
@@ -95,7 +135,7 @@ const ContinueWatchingStack = () => (
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
-    <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} options={{ title: 'My Favorites' }} />
+    <Stack.Screen name="FavoritesScreen" component={GatedFavoritesScreen} options={{ title: 'My Favorites' }} />
     <Stack.Screen name="AchievementsScreen" component={AchievementsScreen} options={{ title: 'Achievements' }} />
     <Stack.Screen name="CinemaQuizScreen" component={CinemaQuizScreen as AnyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
@@ -103,15 +143,6 @@ const ProfileStack = () => (
     {socialScreens}
     <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: 'Family Mode' }} />
     <Stack.Screen name="FamilyModePin" component={FamilyModePinScreen} options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-  </Stack.Navigator>
-);
-
-// ── Auth stack ────────────────────────────────────────────────────────────────
-const AuthStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Login" component={LoginScreen} />
-    <Stack.Screen name="SignUp" component={SignUpScreen} options={{ animation: 'slide_from_right' }} />
-    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right' }} />
   </Stack.Navigator>
 );
 
@@ -172,20 +203,24 @@ const BottomTabNavigator = () => {
   );
 };
 
-// ── Root navigator — auth-aware ───────────────────────────────────────────────
+// ── Root navigator ────────────────────────────────────────────────────────────
 /**
- * Auth flow (React Navigation recommended pattern):
- *  - Splash shows until animation completes AND Firebase auth has resolved
- *  - After splash: show MainApp (authenticated) or AuthStack (not authenticated)
- *  - On logout: `user` becomes null → React Navigation switches to AuthStack automatically
- *  - On login: `user` is set → MainApp appears automatically
+ * Navigation flow:
+ *  - Splash shows until its own animation completes.
+ *  - After splash: always go straight to MainApp (Home) — browsing never
+ *    requires sign-in. Auth only happens from the Profile tab (see
+ *    ProfileSignInPrompt) or from an AuthGate prompt on a protected screen
+ *    (Favorites, Watch Party, Followers/Following, Notifications).
+ *  - We still wait for Firebase's initial auth check (isLoading) before
+ *    leaving the splash so Profile/AuthGate don't flash a "signed out" state
+ *    for a returning, already-authenticated user.
  */
 const RootNavigator = () => {
-  const { user, isLoading } = useAuth();
+  const { isLoading } = useAuth();
   const [splashComplete, setSplashComplete] = useState(false);
 
   // Stable callback — prevents SplashScreen's useEffect from resetting the
-  // ~2.53 s timer every time isLoading / user changes cause a parent re-render.
+  // ~2.53 s timer every time isLoading changes cause a parent re-render.
   const handleSplashComplete = useCallback(() => setSplashComplete(true), []);
 
   // Stay on splash while the animation is running OR while Firebase is resolving auth
@@ -197,10 +232,8 @@ const RootNavigator = () => {
         <Stack.Screen name="Splash">
           {() => <SplashScreen onComplete={handleSplashComplete} />}
         </Stack.Screen>
-      ) : user !== null ? (
-        <Stack.Screen name="MainApp" component={BottomTabNavigator} />
       ) : (
-        <Stack.Screen name="Auth" component={AuthStack} />
+        <Stack.Screen name="MainApp" component={BottomTabNavigator} />
       )}
     </Stack.Navigator>
   );

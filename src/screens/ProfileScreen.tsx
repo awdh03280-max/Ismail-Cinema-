@@ -22,6 +22,7 @@ import { useXP } from '../context/XPContext';
 import { useFollow } from '../context/FollowContext';
 import { useDailyReward } from '../hooks/useDailyReward';
 import DailyRewardModal from '../components/DailyRewardModal';
+import ProfileSignInPrompt from './ProfileSignInPrompt';
 
 // Small inline components that safely call hooks inside provider tree
 
@@ -242,7 +243,7 @@ const ProfileScreen = ({ navigation }: any) => {
   const [rewardModalVisible, setRewardModalVisible] = useState(false);
 
   const { isEnabled, isUnlocked } = useFamilyMode();
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, logout, isLoading: authLoading } = useAuth();
   const dailyReward = useDailyReward();
 
   useEffect(() => {
@@ -307,6 +308,13 @@ const ProfileScreen = ({ navigation }: any) => {
   // Avatar letter and photo
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || 'C';
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
+
+  // Not signed in — show sign-in options instead of profile data.
+  // Browsing (Home/Search/Details/Player) never requires auth; only this
+  // Profile tab gates on it, per product requirement.
+  if (!authLoading && !user) {
+    return <ProfileSignInPrompt navigation={navigation} />;
+  }
 
   return (
     <View style={styles.container}>

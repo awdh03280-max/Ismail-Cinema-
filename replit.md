@@ -63,7 +63,7 @@ src/
 ## Key Features
 
 - **Streaming**: Multi-server movie/TV player with auto-fallback
-- **Auth**: Email/password + Google Sign-In (web: popup/redirect, native: expo-auth-session)
+- **Auth**: Email/password + Google Sign-In (web: popup/redirect, native: expo-auth-session). Browsing (Home, Search, Continue Watching, movie/TV details, trailers, player) never requires sign-in — the app opens straight to Home after the splash screen. Sign-in only happens from the Profile tab (`ProfileSignInPrompt`) or from an `AuthGate` prompt when opening a protected screen (Favorites, Watch Party, Followers/Following, Notifications). Facebook and Phone Number sign-in are shown as options in the Profile sign-in prompt but are UI-only placeholders — enabling them requires configuring a Facebook App ID / Phone provider in the Firebase console.
 - **Social**: Follow/unfollow, public profiles, real-time notifications
 - **Watch Party**: Create or join a Firestore-synced watch party via 6-char code
 - **Achievements**: 18 achievements with XP/leveling system
