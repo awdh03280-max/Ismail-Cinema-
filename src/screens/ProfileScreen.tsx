@@ -18,233 +18,18 @@ import i18next from '../i18n/i18n';
 import { setLanguage, getLanguage } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { useAuth } from '../context/AuthContext';
-import { useXP } from '../context/XPContext';
 import { useFollow } from '../context/FollowContext';
-import { useDailyReward } from '../hooks/useDailyReward';
-import DailyRewardModal from '../components/DailyRewardModal';
 import ProfileSignInPrompt from './ProfileSignInPrompt';
-
-// Small inline components that safely call hooks inside provider tree
-
-// ── XP Level Card ─────────────────────────────────────────────────────────────
-const XPLevelCard: React.FC = () => {
-  const { xp, level, xpInLevel, xpToNextLevel, xpProgress } = useXP();
-  const isMaxLevel = level >= 150;
-
-  return (
-    <View style={xpStyles.card}>
-      {/* Level badge + XP total */}
-      <View style={xpStyles.topRow}>
-        <View style={xpStyles.levelBadge}>
-          <Text style={xpStyles.levelLabel}>LVL</Text>
-          <Text style={xpStyles.levelNumber}>{level}</Text>
-        </View>
-        <View style={xpStyles.xpInfo}>
-          <Text style={xpStyles.xpTotal}>{xp.toLocaleString()} XP</Text>
-          <Text style={xpStyles.xpSub}>
-            {isMaxLevel
-              ? '✨ Max Level Reached'
-              : `${xpInLevel} / 500 XP · ${xpToNextLevel} to Level ${level + 1}`}
-          </Text>
-        </View>
-      </View>
-
-      {/* Progress bar */}
-      <View style={xpStyles.barTrack}>
-        <View style={[xpStyles.barFill, { width: `${Math.round(xpProgress * 100)}%` as `${number}%` }]} />
-      </View>
-      <View style={xpStyles.barLabels}>
-        <Text style={xpStyles.barLabelLeft}>Level {level}</Text>
-        {!isMaxLevel && <Text style={xpStyles.barLabelRight}>Level {level + 1}</Text>}
-      </View>
-    </View>
-  );
-};
-
-const xpStyles = StyleSheet.create({
-  card: {
-    width: '90%',
-    backgroundColor: '#0d0d0d',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1e1e1e',
-    padding: 14,
-    marginTop: 14,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  levelBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#1a1000',
-    borderWidth: 2,
-    borderColor: '#d4af37',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  levelLabel: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#d4af37',
-    letterSpacing: 1,
-  },
-  levelNumber: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#d4af37',
-    lineHeight: 22,
-  },
-  xpInfo: {
-    flex: 1,
-  },
-  xpTotal: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  xpSub: {
-    fontSize: 11,
-    color: '#888',
-    marginTop: 2,
-  },
-  barTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1e1e1e',
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: '#d4af37',
-    minWidth: 4,
-  },
-  barLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  barLabelLeft: { fontSize: 10, color: '#555' },
-  barLabelRight: { fontSize: 10, color: '#555' },
-});
-
-const AchievementsSummary: React.FC = () => {
-  const { unlockedIds, allAchievements, level } = useXP();
-  return (
-    <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-      {unlockedIds.size}/{allAchievements.length} unlocked · Level {level}
-    </Text>
-  );
-};
-
-// Social stats row (followers / following tappable counters)
-// Notification bell with unread badge
-const NotificationIconWithBadge: React.FC = () => {
-  const { unreadCount } = useFollow();
-  return (
-    <View style={{ position: 'relative', width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }}>
-      <Ionicons name="notifications-outline" size={24} color="#d4af37" />
-      {unreadCount > 0 && (
-        <View style={socialStyles.inlineBadge}>
-          <Text style={socialStyles.inlineBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-        </View>
-      )}
-    </View>
-  );
-};
-
-const SocialStatsRow: React.FC<{ navigation: any; uid: string }> = ({ navigation, uid }) => {
-  const { followersCount, followingCount, unreadCount } = useFollow();
-  const { userProfile } = useAuth();
-  const displayName = userProfile?.displayName ?? 'Cinema User';
-  return (
-    <View style={socialStyles.statsWrap}>
-      <TouchableOpacity
-        style={socialStyles.statBox}
-        onPress={() => navigation.navigate('FollowersScreen', { uid, displayName })}
-        activeOpacity={0.75}
-      >
-        <Text style={socialStyles.statCount}>{followersCount}</Text>
-        <Text style={socialStyles.statLabel}>Followers</Text>
-      </TouchableOpacity>
-      <View style={socialStyles.statDivider} />
-      <TouchableOpacity
-        style={socialStyles.statBox}
-        onPress={() => navigation.navigate('FollowingScreen', { uid, displayName })}
-        activeOpacity={0.75}
-      >
-        <Text style={socialStyles.statCount}>{followingCount}</Text>
-        <Text style={socialStyles.statLabel}>Following</Text>
-      </TouchableOpacity>
-      <View style={socialStyles.statDivider} />
-      <TouchableOpacity
-        style={socialStyles.statBox}
-        onPress={() => navigation.navigate('NotificationsScreen')}
-        activeOpacity={0.75}
-      >
-        <View style={socialStyles.bellWrap}>
-          <Ionicons name="notifications-outline" size={22} color="#d4af37" />
-          {unreadCount > 0 && (
-            <View style={socialStyles.badge}>
-              <Text style={socialStyles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={socialStyles.statLabel}>Activity</Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-const socialStyles = StyleSheet.create({
-  statsWrap: {
-    flexDirection: 'row',
-    marginTop: 16,
-    backgroundColor: '#111',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1e1e1e',
-    overflow: 'hidden',
-    width: '90%',
-  },
-  statBox: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  statCount: { fontSize: 20, fontWeight: '900', color: '#fff' },
-  statLabel: { fontSize: 10, color: '#666', marginTop: 2, fontWeight: '600' },
-  statDivider: { width: 1, backgroundColor: '#1e1e1e', marginVertical: 8 },
-  bellWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  badge: {
-    position: 'absolute', top: -4, right: -6,
-    backgroundColor: '#e50914', borderRadius: 8,
-    minWidth: 16, height: 16,
-    justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: 3, borderWidth: 1.5, borderColor: '#000',
-  },
-  badgeText: { fontSize: 9, color: '#fff', fontWeight: '800' },
-  inlineBadge: {
-    position: 'absolute', top: -4, right: -6,
-    backgroundColor: '#e50914', borderRadius: 7,
-    minWidth: 14, height: 14,
-    justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: 2, borderWidth: 1, borderColor: '#000',
-  },
-  inlineBadgeText: { fontSize: 8, color: '#fff', fontWeight: '800' },
-});
 
 const ProfileScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
   const [currentLanguage, setCurrentLanguage] = useState('en');
   const [darkMode] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [rewardModalVisible, setRewardModalVisible] = useState(false);
 
   const { isEnabled, isUnlocked } = useFamilyMode();
   const { user, userProfile, logout, isLoading: authLoading } = useAuth();
-  const dailyReward = useDailyReward();
+  const { followersCount, followingCount } = useFollow();
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
@@ -301,9 +86,6 @@ const ProfileScreen = ({ navigation }: any) => {
     userProfile?.displayName || user?.displayName || 'Cinema User';
   const displayEmail =
     userProfile?.email || user?.email || '';
-  const isGoogleUser =
-    userProfile?.provider === 'google' ||
-    user?.providerData?.[0]?.providerId === 'google.com';
 
   // Avatar letter and photo
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || 'C';
@@ -341,22 +123,73 @@ const ProfileScreen = ({ navigation }: any) => {
             </View>
           )}
 
-          {/* Provider badge */}
-          {isGoogleUser && (
-            <View style={styles.providerBadge}>
-              <Text style={styles.providerBadgeText}>G</Text>
-              <Text style={styles.providerBadgeLabel}> Google</Text>
-            </View>
-          )}
-
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileEmail}>{displayEmail}</Text>
+        </View>
 
-          {/* XP level card */}
-          <XPLevelCard />
+        {/* ── Menu ───────────────────────────────────────────────────────── */}
+        <View style={styles.section}>
+          {/* Favorites */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('FavoritesScreen')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="heart" size={24} color="#d4af37" />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>{t('favorites')}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+          </TouchableOpacity>
 
-          {/* Social stats row */}
-          <SocialStatsRow navigation={navigation} uid={user?.uid ?? ''} />
+          {/* My Watch Parties */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('WatchParty')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="people-circle" size={24} color="#e50914" />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>My Watch Parties</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+          </TouchableOpacity>
+
+          {/* Followers */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('FollowersScreen', { uid: user?.uid ?? '', displayName })}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="people" size={24} color="#e50914" />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Followers</Text>
+                <Text style={styles.settingValue}>{followersCount}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+          </TouchableOpacity>
+
+          {/* Following */}
+          <TouchableOpacity
+            style={[styles.settingItem, styles.settingItemLast]}
+            onPress={() => navigation.navigate('FollowingScreen', { uid: user?.uid ?? '', displayName })}
+            activeOpacity={0.75}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="person-add" size={24} color="#e50914" />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Following</Text>
+                <Text style={styles.settingValue}>{followingCount}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+          </TouchableOpacity>
         </View>
 
         {/* ── Settings ───────────────────────────────────────────────────── */}
@@ -429,161 +262,7 @@ const ProfileScreen = ({ navigation }: any) => {
             </View>
           </TouchableOpacity>
 
-          {/* Favorites */}
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => navigation.navigate('FavoritesScreen')}
-            activeOpacity={0.75}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="heart" size={24} color="#d4af37" />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>{t('favorites')}</Text>
-                <Text style={styles.settingValue}>View your saved titles</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#555" />
-          </TouchableOpacity>
-
-          {/* Achievements */}
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => navigation.navigate('AchievementsScreen')}
-            activeOpacity={0.75}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="trophy" size={24} color="#d4af37" />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>Achievements</Text>
-                <AchievementsSummary />
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#555" />
-          </TouchableOpacity>
-
-          {/* Cinema Quiz — اختبر ذاكرتك السينمائية */}
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => navigation.navigate('CinemaQuizScreen')}
-            activeOpacity={0.75}
-          >
-            <View style={styles.settingLeft}>
-              <View style={styles.dailyRewardIconWrap}>
-                <Text style={styles.dailyRewardIconEmoji}>🧠</Text>
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>اختبر ذاكرتك السينمائية</Text>
-                <Text style={styles.settingValue}>10 أسئلة يومياً من مشاهداتك</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#555" />
-          </TouchableOpacity>
-
-          {/* Daily Reward — الصندوق اليومي */}
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => setRewardModalVisible(true)}
-            activeOpacity={0.75}
-          >
-            <View style={styles.settingLeft}>
-              <View style={styles.dailyRewardIconWrap}>
-                <Text style={styles.dailyRewardIconEmoji}>🎁</Text>
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>الصندوق اليومي</Text>
-                <Text style={[styles.settingValue, dailyReward.canClaim && styles.rewardReadyText]}>
-                  {dailyReward.canClaim
-                    ? '✨ مكافأتك جاهزة! اضغط للفتح'
-                    : `التالية خلال ${dailyReward.countdown}`}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.settingRight}>
-              {dailyReward.canClaim && (
-                <View style={styles.rewardReadyDot} />
-              )}
-              <Ionicons name="chevron-forward" size={18} color="#555" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Social — Activity / Notifications */}
-          <TouchableOpacity
-            style={[styles.settingItem, styles.settingItemLast]}
-            onPress={() => navigation.navigate('NotificationsScreen')}
-            activeOpacity={0.75}
-          >
-            <View style={styles.settingLeft}>
-              <NotificationIconWithBadge />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>Activity</Text>
-                <Text style={styles.settingValue}>Follow notifications</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#555" />
-          </TouchableOpacity>
         </View>
-
-        {/* ── Account section ────────────────────────────────────────────── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('account')}</Text>
-
-          {/* Account info row */}
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="person-circle-outline" size={24} color="#e50914" />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>{t('signed_in_as')}</Text>
-                <Text style={styles.settingValue} numberOfLines={1}>
-                  {displayEmail}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Auth provider row */}
-          <View style={[styles.settingItem, styles.settingItemLast]}>
-            <View style={styles.settingLeft}>
-              <Ionicons
-                name={isGoogleUser ? 'logo-google' : 'mail-outline'}
-                size={24}
-                color="#e50914"
-              />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>{t('sign_in_method')}</Text>
-                <Text style={styles.settingValue}>
-                  {isGoogleUser ? 'Google' : 'Email & Password'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* ── About ─────────────────────────────────────────────────────── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('about')}</Text>
-          <View style={styles.aboutItem}>
-            <Text style={styles.aboutLabel}>{t('app_name_label')}</Text>
-            <Text style={styles.aboutValue}>Ismail Cinema</Text>
-          </View>
-          <View style={styles.aboutItem}>
-            <Text style={styles.aboutLabel}>{t('version')}</Text>
-            <Text style={styles.aboutValue}>1.0.0</Text>
-          </View>
-          <View style={styles.aboutItem}>
-            <Text style={styles.aboutLabel}>{t('developer_label')}</Text>
-            <Text style={styles.aboutValue}>{t('developer_value')}</Text>
-          </View>
-        </View>
-
-        {/* ── Daily Reward Modal ─────────────────────────────────────────── */}
-        <DailyRewardModal
-          visible={rewardModalVisible}
-          onClose={() => setRewardModalVisible(false)}
-          onClaim={dailyReward.claimReward}
-          canClaim={dailyReward.canClaim}
-          countdown={dailyReward.countdown}
-          claiming={dailyReward.claiming}
-        />
 
         {/* ── Sign out ───────────────────────────────────────────────────── */}
         <View style={styles.signOutSection}>
@@ -636,14 +315,6 @@ const styles = StyleSheet.create({
   photoImage: {
     width: '100%', height: '100%',
   },
-  providerBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1e1e30', borderRadius: 12,
-    paddingHorizontal: 10, paddingVertical: 3,
-    marginBottom: 6, borderWidth: 1, borderColor: '#2a2a3e',
-  },
-  providerBadgeText: { fontSize: 13, fontWeight: '800', color: '#4285F4' },
-  providerBadgeLabel: { fontSize: 11, color: '#aaa' },
   profileName: { fontSize: 20, fontWeight: '700', color: '#fff', marginTop: 4 },
   profileEmail: { fontSize: 13, color: '#999', marginTop: 4 },
 
@@ -677,34 +348,6 @@ const styles = StyleSheet.create({
   fmDot: { width: 8, height: 8, borderRadius: 4 },
   fmDotRed: { backgroundColor: '#e50914' },
   fmDotGreen: { backgroundColor: '#2db52d' },
-
-  // Daily Reward card
-  dailyRewardIconWrap: {
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dailyRewardIconEmoji: {
-    fontSize: 22,
-  },
-  rewardReadyText: {
-    color: '#d4af37',
-    fontWeight: '700',
-  },
-  rewardReadyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#d4af37',
-    marginRight: 4,
-  },
-
-  aboutItem: {
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1a1a2e',
-  },
-  aboutLabel: { fontSize: 12, color: '#999' },
-  aboutValue: { fontSize: 14, color: '#fff', marginTop: 4, fontWeight: '600' },
 
   signOutSection: { padding: 24 },
   signOutBtn: {
