@@ -21,14 +21,15 @@ import {
 import MovieCard from '../components/MovieCard';
 import SectionTitle from '../components/SectionTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
-import HeroBanner from '../components/HeroBanner';
 import MovieOfTheDay from '../components/MovieOfTheDay';
 import MufarkirCard from '../components/MufarkirCard';
+import ContinueWatchingSection from '../components/ContinueWatchingSection';
 import {
   addToFavorites,
   removeFromFavorites,
   getFavorites,
   getContinueWatching,
+  getPlaybackPosition,
   ContinueWatchingMovie,
 } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
@@ -72,8 +73,8 @@ const toContinueWatchingMovie = (m: ContinueWatchingMovie): Movie => {
 };
 
 const HomeScreen = ({ navigation }: any) => {
-  const [hero, setHero] = useState<Movie[]>([]);
   const [sections, setSections] = useState<HomeSection[]>([]);
+  const [continueWatchingMovies, setContinueWatchingMovies] = useState<ContinueWatchingMovie[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -109,8 +110,6 @@ const HomeScreen = ({ navigation }: any) => {
         getRecentlyAdded(),
       ]);
 
-      const filteredHero = filterMovies(trending.slice(0, 6));
-
       const rawSections: HomeSection[] = [
         { key: 'trending', title: '🔥 Trending Now', movies: trending },
         { key: 'topRated', title: '⭐ Top Rated Movies', movies: topRated },
@@ -118,13 +117,6 @@ const HomeScreen = ({ navigation }: any) => {
         { key: 'mustWatchSeries', title: '📺 Must Watch Series', movies: mustWatchSeries },
         { key: 'bestAnime', title: '🎌 Best Anime', movies: bestAnime },
         { key: 'bestAnimation', title: '🎨 Best Animation', movies: bestAnimation },
-        {
-          key: 'continueWatching',
-          title: '❤️ Continue Watching',
-          movies: continueWatching
-            .sort((a, b) => b.watchedAt - a.watchedAt)
-            .map(toContinueWatchingMovie),
-        },
         { key: 'recentlyAdded', title: '🆕 Recently Added', movies: recentlyAdded },
       ];
 
@@ -132,8 +124,18 @@ const HomeScreen = ({ navigation }: any) => {
         .map(section => ({ ...section, movies: filterMovies(section.movies) }))
         .filter(section => section.movies.length > 0);
 
-      setHero(filteredHero);
+      const filteredContinueWatching = filterMovies(
+        continueWatching.map(toContinueWatchingMovie)
+      );
+      const continueWatchingByImdbID = new Map(
+        continueWatching.map(m => [m.imdbID, m])
+      );
+      const sortedContinueWatching = filteredContinueWatching
+        .map(m => continueWatchingByImdbID.get(m.imdbID)!)
+        .sort((a, b) => b.watchedAt - a.watchedAt);
+
       setSections(filteredSections);
+      setContinueWatchingMovies(sortedContinueWatching);
 
       const allFavs = await getFavorites();
       const favSet = new Set(allFavs.map(f => f.imdbID));
@@ -158,6 +160,25 @@ const HomeScreen = ({ navigation }: any) => {
 
   const handleMoviePress = useCallback((movie: Movie) => {
     navigation.navigate('MovieDetails', { movieId: movie.imdbID, contentType: movie.contentType });
+  }, [navigation]);
+
+  const handleContinueWatchingPress = useCallback((movie: ContinueWatchingMovie) => {
+    navigation.navigate('MovieDetails', {
+      movieId: movie.imdbID,
+      contentType: movie.contentType ?? 'movie',
+    });
+  }, [navigation]);
+
+  /** Resume playback from the last saved timestamp. */
+  const handleContinueWatchingResume = useCallback(async (movie: ContinueWatchingMovie) => {
+    const savedPos = await getPlaybackPosition(movie.imdbID);
+    navigation.navigate('Player', {
+      movieId: movie.imdbID,
+      title: movie.title,
+      poster: movie.poster,
+      contentType: movie.contentType ?? 'movie',
+      initialProgress: savedPos ?? movie.progress,
+    });
   }, [navigation]);
 
   const handleFavoritePress = useCallback(async (movie: Movie) => {
@@ -223,10 +244,10 @@ const HomeScreen = ({ navigation }: any) => {
 
         <MufarkirCard onMoviePress={handleMoviePress} />
 
-        <HeroBanner
-          movies={hero}
-          onPlay={handleMoviePress}
-          onMoreInfo={handleMoviePress}
+        <ContinueWatchingSection
+          movies={continueWatchingMovies}
+          onPress={handleContinueWatchingPress}
+          onContinue={handleContinueWatchingResume}
         />
 
         {sections.map(section => (
