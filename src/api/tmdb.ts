@@ -735,7 +735,7 @@ export const GENRE_IDS: Record<string, number> = {
   Adventure: 12,
   Family: 10751,
   Fantasy: 14,
-  'Sci-Fi': 878,
+  'Science Fiction': 878,
   Drama: 18,
   History: 36,
   Mystery: 9648,
@@ -743,12 +743,22 @@ export const GENRE_IDS: Record<string, number> = {
 };
 
 export const GENRE_LIST = [
-  'Action', 'Comedy', 'Horror', 'War', 'Romance', 'Crime', 'Adventure',
-  'Animation', 'Anime', 'Family', 'Fantasy', 'Sci-Fi', 'Drama', 'History',
-  'Mystery', 'Thriller',
+  'Action', 'Adventure', 'Horror', 'Comedy', 'Drama', 'Romance', 'Thriller',
+  'Mystery', 'Crime', 'Science Fiction', 'Fantasy', 'Family', 'Animation',
+  'History', 'War', 'Anime',
 ];
 
-/** Browse titles by genre chip — special-cased for Anime / Animation. */
+/** Sort options exposed as chips on the Search screen. */
+export type SortKey = 'trending' | 'popular' | 'toprated' | 'new';
+
+export const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'trending', label: 'Trending' },
+  { key: 'popular', label: 'Popular' },
+  { key: 'toprated', label: 'Top Rated' },
+  { key: 'new', label: 'New Releases' },
+];
+
+/** Browse titles by a single genre chip — special-cased for Anime / Animation. Kept for backwards compatibility. */
 export const discoverByGenre = async (genre: string): Promise<Movie[]> => {
   if (genre === 'Anime') return getAnime();
   if (genre === 'Animation') return getAnimationMovies();
@@ -765,6 +775,97 @@ export const discoverByGenre = async (genre: string): Promise<Movie[]> => {
   });
 
   return res.data.results.map((m: any) => mapMovie(m, 'movie'));
+};
+
+/**
+ * Browse titles matching ANY of the selected genre chips (OR semantics), across
+ * movies + TV. Anime / Animation are special-cased (language/genre combos that
+ * don't map to a single TMDB genre id) and merged in alongside the rest.
+ */
+export const discoverByGenres = async (genres: string[]): Promise<Movie[]> => {
+  if (genres.length === 0) return [];
+
+  const specials = genres.filter(g => g === 'Anime' || g === 'Animation');
+  const normal = genres.filter(g => GENRE_IDS[g] !== undefined);
+
+  const requests: Promise<Movie[]>[] = [];
+
+  if (normal.length > 0) {
+    const withGenres = normal.map(g => GENRE_IDS[g]).join('|');
+    requests.push(
+      api
+        .get('/discover/movie', {
+          params: { api_key: API_KEY, with_genres: withGenres, sort_by: 'popularity.desc' },
+        })
+        .then(res => res.data.results.map((m: any) => mapMovie(m, 'movie')))
+    );
+    requests.push(
+      api
+        .get('/discover/tv', {
+          params: { api_key: API_KEY, with_genres: withGenres, sort_by: 'popularity.desc' },
+        })
+        .then(res => res.data.results.map((m: any) => mapMovie(m, 'tv')))
+    );
+  }
+
+  if (specials.includes('Anime')) requests.push(getAnime());
+  if (specials.includes('Animation')) requests.push(getAnimationMovies());
+
+  const results = await Promise.all(requests);
+  const merged = results.flat();
+
+  // De-dupe titles that matched more than one request (e.g. movie + tv overlap on id collisions never
+  // happen across types since ids are namespaced by contentType in the key already, but genre requests can
+  // still repeat the same title across normal/special buckets).
+  const seen = new Set<string>();
+  return merged.filter(m => {
+    const key = `${m.contentType}-${m.imdbID}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+/**
+ * Client-side sort applied to whatever result set is currently on screen (text
+ * search, genre browse, or the default trending feed) so sorting always works
+ * regardless of which TMDB endpoint produced the list.
+ */
+export const sortMovies = (movies: Movie[], sort: SortKey): Movie[] => {
+  const list = [...movies];
+
+  switch (sort) {
+    case 'toprated':
+      return list.sort((a, b) => {
+        const diff = parseFloat(b.imdbRating) - parseFloat(a.imdbRating);
+        return diff !== 0 ? diff : b.voteCount - a.voteCount;
+      });
+    case 'new':
+      return list.sort((a, b) => {
+        const dateA = a.Released ? new Date(a.Released).getTime() : 0;
+        const dateB = b.Released ? new Date(b.Released).getTime() : 0;
+        return dateB - dateA;
+      });
+    case 'trending': {
+      // Proxy for "trending": recency-weighted popularity — favors titles that
+      // are both well-watched (vote count) and recently released.
+      const now = Date.now();
+      const score = (m: Movie) => {
+        const released = m.Released ? new Date(m.Released).getTime() : 0;
+        const ageDays = released ? Math.max(1, (now - released) / (1000 * 60 * 60 * 24)) : 3650;
+        return m.voteCount / Math.sqrt(ageDays);
+      };
+      return list.sort((a, b) => score(b) - score(a));
+    }
+    case 'popular':
+    default:
+      return list.sort((a, b) => b.voteCount - a.voteCount);
+  }
+};
+
+/** Default browse feed shown when no text query or genre filter is active. */
+export const getDefaultBrowseFeed = async (): Promise<Movie[]> => {
+  return getTrendingNow();
 };
 
 /** Generic TV search — used alongside searchMovies for global text search. */

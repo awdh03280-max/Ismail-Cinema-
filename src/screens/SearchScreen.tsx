@@ -8,7 +8,16 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { searchAll, discoverByGenre, GENRE_LIST, Movie } from '../api/tmdb';
+import {
+  searchAll,
+  discoverByGenres,
+  sortMovies,
+  getDefaultBrowseFeed,
+  GENRE_LIST,
+  SORT_OPTIONS,
+  SortKey,
+  Movie,
+} from '../api/tmdb';
 import SearchBar from '../components/SearchBar';
 import MovieCard from '../components/MovieCard';
 import EmptyState from '../components/EmptyState';
@@ -20,10 +29,12 @@ import {
 } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { colors } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
 
 const SearchScreen = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+  const [selectedSort, setSelectedSort] = useState<SortKey>('popular');
   /** Raw results from the last API call — never mutated for Family Mode. */
   const [rawMovies, setRawMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,12 +45,13 @@ const SearchScreen = ({ navigation }: any) => {
   const requestId = useRef(0);
 
   /**
-   * Derived list: re-computed whenever Family Mode state changes so existing
-   * results are immediately re-filtered on lock/unlock without a new API call.
+   * Derived list: re-computed whenever Family Mode state or the active sort
+   * changes so existing results are immediately re-filtered/re-sorted without
+   * a new API call.
    */
   const movies = useMemo(
-    () => filterMovies(rawMovies),
-    [rawMovies, isEnabled, isUnlocked, filterMovies]
+    () => sortMovies(filterMovies(rawMovies), selectedSort),
+    [rawMovies, isEnabled, isUnlocked, filterMovies, selectedSort]
   );
 
   useEffect(() => {
@@ -78,27 +90,46 @@ const SearchScreen = ({ navigation }: any) => {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
-    setSelectedGenre(null);
+    setSelectedGenres(new Set());
     runFetch(() => searchAll(searchQuery));
   };
 
   const handleGenrePress = (genre: string) => {
-    if (selectedGenre === genre) {
-      setSelectedGenre(null);
-      setSearched(false);
-      setRawMovies([]);
-      return;
-    }
     setSearchQuery('');
-    setSelectedGenre(genre);
-    runFetch(() => discoverByGenre(genre));
+    setSelectedGenres(prev => {
+      const next = new Set(prev);
+      if (next.has(genre)) {
+        next.delete(genre);
+      } else {
+        next.add(genre);
+      }
+
+      if (next.size === 0) {
+        setSearched(false);
+        setRawMovies([]);
+      } else {
+        runFetch(() => discoverByGenres(Array.from(next)));
+      }
+      return next;
+    });
+  };
+
+  const handleSortPress = (sort: SortKey) => {
+    setSelectedSort(sort);
+    // Sorting re-derives from the existing raw results (see `movies` memo). If
+    // nothing has been browsed yet, tapping a sort chip kicks off the default
+    // trending feed so the chip has something to sort.
+    if (!searched && selectedGenres.size === 0 && !searchQuery.trim()) {
+      runFetch(() => getDefaultBrowseFeed());
+    }
   };
 
   const handleClear = () => {
     setSearchQuery('');
-    setRawMovies([]);
-    setSearched(false);
-    setSelectedGenre(null);
+    if (selectedGenres.size === 0) {
+      setRawMovies([]);
+      setSearched(false);
+    }
   };
 
   const handleMoviePress = (movie: Movie) => {
@@ -141,27 +172,75 @@ const SearchScreen = ({ navigation }: any) => {
         placeholder="Search movies & shows..."
       />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.genreRow}
-      >
-        {GENRE_LIST.map(genre => {
-          const isActive = genre === selectedGenre;
-          return (
+      <View style={styles.filterSection}>
+        <View style={styles.filterLabelRow}>
+          <Text style={styles.filterLabel}>Genres</Text>
+          {selectedGenres.size > 0 && (
             <TouchableOpacity
-              key={genre}
-              style={[styles.chip, isActive && styles.chipActive]}
-              onPress={() => handleGenrePress(genre)}
-              activeOpacity={0.8}
+              onPress={() => {
+                setSelectedGenres(new Set());
+                setSearched(false);
+                setRawMovies([]);
+              }}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-                {genre}
-              </Text>
+              <Text style={styles.clearFiltersText}>Clear</Text>
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+          )}
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.genreRow}
+        >
+          {GENRE_LIST.map(genre => {
+            const isActive = selectedGenres.has(genre);
+            return (
+              <TouchableOpacity
+                key={genre}
+                style={[styles.chip, isActive && styles.chipActive]}
+                onPress={() => handleGenrePress(genre)}
+                activeOpacity={0.8}
+              >
+                {isActive && (
+                  <Ionicons
+                    name="checkmark"
+                    size={13}
+                    color="#fff"
+                    style={styles.chipCheckIcon}
+                  />
+                )}
+                <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                  {genre}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={[styles.filterLabel, styles.sortLabel]}>Sort By</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.genreRow}
+        >
+          {SORT_OPTIONS.map(option => {
+            const isActive = option.key === selectedSort;
+            return (
+              <TouchableOpacity
+                key={option.key}
+                style={[styles.sortChip, isActive && styles.sortChipActive]}
+                onPress={() => handleSortPress(option.key)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.sortChipText, isActive && styles.sortChipTextActive]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {loading ? (
         <LoadingSpinner />
@@ -176,8 +255,8 @@ const SearchScreen = ({ navigation }: any) => {
           icon="film"
           title="No Results Found"
           message={
-            selectedGenre
-              ? `No titles found for "${selectedGenre}"`
+            selectedGenres.size > 0
+              ? `No titles found for "${Array.from(selectedGenres).join(', ')}"`
               : `No results found for "${searchQuery}"`
           }
         />
@@ -219,6 +298,30 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headerLogoRed: { color: colors.gold },
+  filterSection: {
+    paddingBottom: 4,
+  },
+  filterLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  filterLabel: {
+    color: colors.textSecondary,
+    fontWeight: '800',
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  sortLabel: {
+    marginTop: 2,
+  },
+  clearFiltersText: {
+    color: colors.gold,
+    fontWeight: '700',
+    fontSize: 12,
+  },
   genreRow: {
     flexDirection: 'row',
     gap: 10,
@@ -226,6 +329,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
@@ -237,6 +342,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.red,
     borderColor: colors.red,
   },
+  chipCheckIcon: {
+    marginRight: 5,
+  },
   chipText: {
     color: colors.textSecondary,
     fontWeight: '700',
@@ -244,6 +352,26 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: '#fff',
+  },
+  sortChip: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sortChipActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  sortChipText: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  sortChipTextActive: {
+    color: colors.black,
   },
   columnWrapper: {
     justifyContent: 'space-around',
