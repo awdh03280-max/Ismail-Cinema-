@@ -7,7 +7,15 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  Animated,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import {
   searchAll,
   discoverByGenres,
@@ -43,6 +51,8 @@ const SearchScreen = ({ navigation }: any) => {
 
   const { isEnabled, isUnlocked, filterMovies } = useFamilyMode();
   const requestId = useRef(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const isAllActive = selectedGenres.size === 0 && searched && !searchQuery.trim();
 
   /**
    * Derived list: re-computed whenever Family Mode state or the active sort
@@ -77,24 +87,43 @@ const SearchScreen = ({ navigation }: any) => {
     try {
       setLoading(true);
       setSearched(true);
+      fadeAnim.setValue(0);
       const results = await fetcher();
       if (currentRequest !== requestId.current) return;
       setRawMovies(results);
       await loadFavoritesForMovies(results);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
     } catch (error) {
       console.error('Error fetching search results:', error);
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
-  }, []);
+  }, [fadeAnim]);
+
+  const animateLayout = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  };
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
+    animateLayout();
     setSelectedGenres(new Set());
     runFetch(() => searchAll(searchQuery));
   };
 
+  const handleAllPress = () => {
+    animateLayout();
+    setSearchQuery('');
+    setSelectedGenres(new Set());
+    runFetch(() => getDefaultBrowseFeed());
+  };
+
   const handleGenrePress = (genre: string) => {
+    animateLayout();
     setSearchQuery('');
     setSelectedGenres(prev => {
       const next = new Set(prev);
@@ -125,6 +154,7 @@ const SearchScreen = ({ navigation }: any) => {
   };
 
   const handleClear = () => {
+    animateLayout();
     setSearchQuery('');
     if (selectedGenres.size === 0) {
       setRawMovies([]);
@@ -193,6 +223,24 @@ const SearchScreen = ({ navigation }: any) => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.genreRow}
         >
+          <TouchableOpacity
+            style={[styles.chip, isAllActive && styles.chipActive]}
+            onPress={handleAllPress}
+            activeOpacity={0.8}
+          >
+            {isAllActive && (
+              <Ionicons
+                name="checkmark"
+                size={13}
+                color={colors.black}
+                style={styles.chipCheckIcon}
+              />
+            )}
+            <Text style={[styles.chipText, isAllActive && styles.chipTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+
           {GENRE_LIST.map(genre => {
             const isActive = selectedGenres.has(genre);
             return (
@@ -206,7 +254,7 @@ const SearchScreen = ({ navigation }: any) => {
                   <Ionicons
                     name="checkmark"
                     size={13}
-                    color="#fff"
+                    color={colors.black}
                     style={styles.chipCheckIcon}
                   />
                 )}
@@ -261,24 +309,26 @@ const SearchScreen = ({ navigation }: any) => {
           }
         />
       ) : (
-        <FlatList
-          data={movies}
-          keyExtractor={item => `${item.contentType}-${item.imdbID}`}
-          numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={styles.movieContainer}>
-              <MovieCard
-                movie={item}
-                onPress={() => handleMoviePress(item)}
-                onFavoritePress={() => handleFavoritePress(item)}
-                isFavorite={favorites.has(item.imdbID)}
-              />
-            </View>
-          )}
-        />
+        <Animated.View style={[styles.resultsWrap, { opacity: fadeAnim }]}>
+          <FlatList
+            data={movies}
+            keyExtractor={item => `${item.contentType}-${item.imdbID}`}
+            numColumns={2}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={styles.movieContainer}>
+                <MovieCard
+                  movie={item}
+                  onPress={() => handleMoviePress(item)}
+                  onFavoritePress={() => handleFavoritePress(item)}
+                  isFavorite={favorites.has(item.imdbID)}
+                />
+              </View>
+            )}
+          />
+        </Animated.View>
       )}
     </View>
   );
@@ -339,8 +389,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   chipActive: {
-    backgroundColor: colors.red,
-    borderColor: colors.red,
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
   },
   chipCheckIcon: {
     marginRight: 5,
@@ -351,7 +401,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   chipTextActive: {
-    color: '#fff',
+    color: colors.black,
   },
   sortChip: {
     paddingHorizontal: 15,
@@ -373,6 +423,7 @@ const styles = StyleSheet.create({
   sortChipTextActive: {
     color: colors.black,
   },
+  resultsWrap: { flex: 1 },
   columnWrapper: {
     justifyContent: 'space-around',
     paddingHorizontal: 8,
