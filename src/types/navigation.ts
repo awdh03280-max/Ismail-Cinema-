@@ -59,5 +59,9 @@ export type RootStackParamList = {
     movieTitle?: string;
     moviePoster?: string;
     contentType?: 'movie' | 'tv';
+    /** Auto-create a party immediately on entry (no confirmation screen) */
+    autoCreate?: boolean;
+    /** Auto-join a party by code, e.g. from an in-app invite notification */
+    autoJoinCode?: string;
   };
 };

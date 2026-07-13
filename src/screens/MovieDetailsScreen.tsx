@@ -732,7 +732,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
               </Text>
             </TouchableOpacity>
 
-            {/* Watch Party button */}
+            {/* Watch Party button — creates a party immediately, no name/visibility prompt */}
             <TouchableOpacity
               style={styles.watchPartyBtn}
               onPress={() =>
@@ -741,12 +741,13 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
                   movieTitle: movie.Title,
                   moviePoster: movie.Poster,
                   contentType,
+                  autoCreate: true,
                 })
               }
               activeOpacity={0.8}
             >
-              <Ionicons name="people-outline" size={18} color={colors.gold} />
-              <Text style={styles.watchPartyText}>Watch Party</Text>
+              <Ionicons name="people" size={18} color={colors.gold} />
+              <Text style={styles.watchPartyText}>👥 Create Watch Party</Text>
             </TouchableOpacity>
           </View>
 

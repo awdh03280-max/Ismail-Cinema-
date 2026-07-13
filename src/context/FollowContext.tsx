@@ -27,6 +27,7 @@ import {
   deleteDoc,
   getDocs,
   updateDoc,
+  setDoc,
   increment,
   writeBatch,
   orderBy,
@@ -317,4 +318,38 @@ export const fetchFollowingIds = async (uid: string): Promise<Set<string>> => {
   } catch {
     return new Set();
   }
+};
+
+// ── Utility: invite a friend to a Watch Party (in-app, no OS share sheet) ──
+
+interface WatchPartyInviteInput {
+  fromUid: string;
+  fromDisplayName: string;
+  fromPhotoURL: string | null;
+  toUid: string;
+  partyId: string;
+  partyCode: string;
+  movieId: string;
+  movieTitle: string;
+  moviePoster: string;
+  contentType: 'movie' | 'tv';
+}
+
+/** Writes a `watch_party_invite` notification directly into the target user's feed. */
+export const sendWatchPartyInvite = async (input: WatchPartyInviteInput): Promise<void> => {
+  const notifRef = doc(collection(db, 'notifications', input.toUid, 'feed'));
+  await setDoc(notifRef, {
+    type: 'watch_party_invite',
+    fromUid: input.fromUid,
+    fromDisplayName: input.fromDisplayName,
+    fromPhotoURL: input.fromPhotoURL,
+    createdAt: Date.now(),
+    read: false,
+    partyId: input.partyId,
+    partyCode: input.partyCode,
+    movieId: input.movieId,
+    movieTitle: input.movieTitle,
+    moviePoster: input.moviePoster,
+    contentType: input.contentType,
+  });
 };

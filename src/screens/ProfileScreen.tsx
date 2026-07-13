@@ -19,6 +19,7 @@ import { setLanguage, getLanguage } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { useAuth } from '../context/AuthContext';
 import { useFollow } from '../context/FollowContext';
+import { useXP } from '../context/XPContext';
 import ProfileSignInPrompt from './ProfileSignInPrompt';
 
 const ProfileScreen = ({ navigation }: any) => {
@@ -30,6 +31,7 @@ const ProfileScreen = ({ navigation }: any) => {
   const { isEnabled, isUnlocked } = useFamilyMode();
   const { user, userProfile, logout, isLoading: authLoading } = useAuth();
   const { followersCount, followingCount } = useFollow();
+  const { level, xp, xpProgress, xpToNextLevel, unlockedIds, allAchievements } = useXP();
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
@@ -126,6 +128,38 @@ const ProfileScreen = ({ navigation }: any) => {
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileEmail}>{displayEmail}</Text>
         </View>
+
+        {/* ── XP / Level / Achievements ────────────────────────────────────── */}
+        <TouchableOpacity
+          style={styles.xpCard}
+          onPress={() => navigation.navigate('AchievementsScreen')}
+          activeOpacity={0.85}
+        >
+          <LinearGradient colors={['#1a1200', '#0d0d0d']} style={styles.xpCardGradient}>
+            <View style={styles.xpCardTop}>
+              <View style={styles.levelBadge}>
+                <Ionicons name="star" size={14} color="#000" />
+                <Text style={styles.levelBadgeText}>Level {level}</Text>
+              </View>
+              <Text style={styles.xpText}>{xp} XP</Text>
+            </View>
+
+            <View style={styles.xpBarTrack}>
+              <View style={[styles.xpBarFill, { width: `${Math.round(xpProgress * 100)}%` }]} />
+            </View>
+            <Text style={styles.xpNextText}>{xpToNextLevel} XP to next level</Text>
+
+            <View style={styles.xpCardDivider} />
+
+            <View style={styles.achievementsRow}>
+              <Ionicons name="trophy" size={18} color="#d4af37" />
+              <Text style={styles.achievementsText}>
+                {unlockedIds.size}/{allAchievements.length} Achievements Unlocked
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color="#555" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* ── Menu ───────────────────────────────────────────────────────── */}
         <View style={styles.section}>
@@ -317,6 +351,33 @@ const styles = StyleSheet.create({
   },
   profileName: { fontSize: 20, fontWeight: '700', color: '#fff', marginTop: 4 },
   profileEmail: { fontSize: 13, color: '#999', marginTop: 4 },
+
+  xpCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+  },
+  xpCardGradient: { padding: 16 },
+  xpCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  levelBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12,
+  },
+  levelBadgeText: { color: '#000', fontSize: 12, fontWeight: '800' },
+  xpText: { color: '#d4af37', fontSize: 13, fontWeight: '700' },
+  xpBarTrack: {
+    height: 8, borderRadius: 4, backgroundColor: '#1e1e1e', overflow: 'hidden',
+  },
+  xpBarFill: { height: 8, borderRadius: 4, backgroundColor: '#d4af37' },
+  xpNextText: { color: '#666', fontSize: 11, marginTop: 6 },
+  xpCardDivider: { height: 1, backgroundColor: 'rgba(212,175,55,0.15)', marginVertical: 14 },
+  achievementsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  achievementsText: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
 
   section: {
     paddingHorizontal: 16, paddingVertical: 16,

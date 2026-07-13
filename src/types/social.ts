@@ -19,7 +19,7 @@ export interface FollowUser {
   followedAt: number; // Unix ms
 }
 
-export type NotificationType = 'follow' | 'comment_like' | 'new_comment';
+export type NotificationType = 'follow' | 'comment_like' | 'new_comment' | 'watch_party_invite';
 
 export interface NotificationDoc {
   id: string;
@@ -29,6 +29,13 @@ export interface NotificationDoc {
   fromPhotoURL: string | null;
   createdAt: number; // Unix ms
   read: boolean;
+  // Present only when type === 'watch_party_invite'
+  partyId?: string;
+  partyCode?: string;
+  movieId?: string;
+  movieTitle?: string;
+  moviePoster?: string;
+  contentType?: 'movie' | 'tv';
 }
 
 export interface FollowContextType {

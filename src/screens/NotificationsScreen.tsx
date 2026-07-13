@@ -54,6 +54,8 @@ const NotificationRow: React.FC<{
     ]).start();
   }, []);
 
+  const isPartyInvite = notif.type === 'watch_party_invite';
+
   return (
     <Animated.View style={{ transform: [{ translateY: slideAnim }], opacity: opacityAnim }}>
       <TouchableOpacity
@@ -66,15 +68,17 @@ const NotificationRow: React.FC<{
 
         {/* Avatar */}
         <View style={styles.avatarWrap}>
-          {notif.fromPhotoURL ? (
+          {isPartyInvite && notif.moviePoster ? (
+            <Image source={{ uri: notif.moviePoster }} style={styles.avatar} />
+          ) : notif.fromPhotoURL ? (
             <Image source={{ uri: notif.fromPhotoURL }} style={styles.avatar} />
           ) : (
             <LinearGradient colors={['#1a1200', '#0d0d0d']} style={styles.avatarFallback}>
               <Text style={styles.avatarText}>{initials(notif.fromDisplayName)}</Text>
             </LinearGradient>
           )}
-          <View style={styles.notifTypeBadge}>
-            <Ionicons name="person-add" size={9} color="#fff" />
+          <View style={[styles.notifTypeBadge, isPartyInvite && { backgroundColor: colors.gold }]}>
+            <Ionicons name={isPartyInvite ? 'people' : 'person-add'} size={9} color={isPartyInvite ? '#000' : '#fff'} />
           </View>
         </View>
 
@@ -82,18 +86,26 @@ const NotificationRow: React.FC<{
         <View style={styles.textBlock}>
           <Text style={styles.notifText} numberOfLines={2}>
             <Text style={styles.notifName}>{notif.fromDisplayName}</Text>
-            {' started following you'}
+            {isPartyInvite
+              ? ` invited you to watch "${notif.movieTitle ?? 'a movie'}" 👥`
+              : ' started following you'}
           </Text>
           <Text style={styles.notifTime}>{formatTime(notif.createdAt)}</Text>
         </View>
 
-        {/* Follow back */}
-        <FollowButton
-          targetUid={notif.fromUid}
-          targetDisplayName={notif.fromDisplayName}
-          targetPhotoURL={notif.fromPhotoURL}
-          size="sm"
-        />
+        {/* Action */}
+        {isPartyInvite ? (
+          <TouchableOpacity style={styles.joinPartyBtn} onPress={onPress} activeOpacity={0.85}>
+            <Text style={styles.joinPartyBtnText}>Join</Text>
+          </TouchableOpacity>
+        ) : (
+          <FollowButton
+            targetUid={notif.fromUid}
+            targetDisplayName={notif.fromDisplayName}
+            targetPhotoURL={notif.fromPhotoURL}
+            size="sm"
+          />
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -140,11 +152,19 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
             notif={item}
             animDelay={index * 40}
             onPress={() =>
-              navigation.push('PublicProfile', {
-                uid: item.fromUid,
-                displayName: item.fromDisplayName,
-                photoURL: item.fromPhotoURL,
-              })
+              item.type === 'watch_party_invite'
+                ? navigation.navigate('WatchParty', {
+                    autoJoinCode: item.partyCode,
+                    movieId: item.movieId,
+                    movieTitle: item.movieTitle,
+                    moviePoster: item.moviePoster,
+                    contentType: item.contentType,
+                  })
+                : navigation.push('PublicProfile', {
+                    uid: item.fromUid,
+                    displayName: item.fromDisplayName,
+                    photoURL: item.fromPhotoURL,
+                  })
             }
           />
         )}
@@ -227,6 +247,13 @@ const styles = StyleSheet.create({
   notifName: { fontWeight: '700', color: '#fff' },
   notifTime: { fontSize: 11, color: '#555', marginTop: 3 },
   separator: { height: 1, backgroundColor: '#111', marginLeft: 76 },
+  joinPartyBtn: {
+    backgroundColor: colors.gold,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  joinPartyBtnText: { color: '#000', fontSize: 12, fontWeight: '800' },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },

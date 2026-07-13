@@ -33,6 +33,11 @@ import {
 import ServerSelector from '../components/player/ServerSelector';
 import QualitySelector from '../components/player/QualitySelector';
 import SubtitleSelector from '../components/player/SubtitleSelector';
+import { useAuth } from '../context/AuthContext';
+import { useWatchPartyPlayback } from '../hooks/useWatchPartyPlayback';
+import { useWatchPartyChat } from '../hooks/useWatchPartyChat';
+import PartySyncBar from '../components/watchparty/PartySyncBar';
+import WatchPartyChatFab from '../components/watchparty/WatchPartyChatFab';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,6 +60,10 @@ interface PlayerParams {
   episode?: number;
   /** Episode title shown in the top bar (TV only) */
   episodeTitle?: string;
+  /** Present when this playback session is part of a Watch Party */
+  partyId?: string;
+  /** Whether the current user is the host of that party */
+  partyIsHost?: boolean;
 }
 
 const PlayerScreen = ({ route, navigation }: any) => {
@@ -68,10 +77,26 @@ const PlayerScreen = ({ route, navigation }: any) => {
     season,
     episode,
     episodeTitle,
+    partyId,
+    partyIsHost = false,
   }: PlayerParams = route.params;
 
   const { t, i18n } = useTranslation();
   const isArabic = i18n.language === 'ar';
+  const { user } = useAuth();
+
+  // ── Watch Party (best-effort sync + chat) ─────────────────────────────────
+  const { playback: partyPlayback, setPartyPlayback } = useWatchPartyPlayback(partyId ?? null);
+  const {
+    messages: partyMessages,
+    chatText: partyChatText,
+    setChatText: setPartyChatText,
+    sendMessage: sendPartyMessage,
+    sendingMsg: sendingPartyMsg,
+    unreadCount: partyUnreadCount,
+    markSeen: markPartyChatSeen,
+    currentUid: partyCurrentUid,
+  } = useWatchPartyChat(partyId ?? null);
 
   // Player state
   const [server, setServer] = useState<StreamingServer>(getDefaultServer());
@@ -391,6 +416,30 @@ const PlayerScreen = ({ route, navigation }: any) => {
             </View>
           </View>
         </Animated.View>
+      )}
+
+      {/* ── Watch Party sync bar + chat ──────────────────────────────────── */}
+      {!!partyId && (
+        <>
+          <PartySyncBar
+            isHost={partyIsHost}
+            playback={partyPlayback}
+            onSetPlayback={(patch) => {
+              if (user) setPartyPlayback(patch, user.uid);
+            }}
+          />
+          <WatchPartyChatFab
+            messages={partyMessages}
+            chatText={partyChatText}
+            setChatText={setPartyChatText}
+            onSend={sendPartyMessage}
+            sendingMsg={sendingPartyMsg}
+            unreadCount={partyUnreadCount}
+            currentUid={partyCurrentUid}
+            onOpen={markPartyChatSeen}
+            bottomOffset={40}
+          />
+        </>
       )}
 
       {/* ── Modals ──────────────────────────────────────────────────────── */}

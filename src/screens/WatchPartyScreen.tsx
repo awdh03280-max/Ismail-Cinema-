@@ -21,7 +21,6 @@ import {
   TextInput,
   StatusBar,
   Alert,
-  FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -34,7 +33,6 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   collection,
   doc,
-  getDoc,
   addDoc,
   setDoc,
   deleteDoc,
@@ -42,17 +40,17 @@ import {
   onSnapshot,
   query,
   where,
-  orderBy,
-  serverTimestamp,
   updateDoc,
   runTransaction,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useXP } from '../context/XPContext';
 import { xpToLevel } from '../data/achievements';
 import { colors } from '../theme/colors';
+import { useWatchPartyChat } from '../hooks/useWatchPartyChat';
+import WatchPartyChatFab from '../components/watchparty/WatchPartyChatFab';
+import InviteFriendsModal from '../components/watchparty/InviteFriendsModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -77,15 +75,6 @@ interface PartyDoc {
   createdAt: number;
 }
 
-interface ChatMessage {
-  id: string;
-  uid: string;
-  displayName: string;
-  photoURL: string | null;
-  text: string;
-  createdAt: Timestamp | null;
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const generateCode = (): string => {
@@ -99,14 +88,6 @@ const generateCode = (): string => {
 
 const initials = (name: string) =>
   name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
-
-const formatTime = (ts: Timestamp | null): string => {
-  if (!ts) return '';
-  const ms = Date.now() - ts.toMillis();
-  if (ms < 60_000) return 'just now';
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m`;
-  return `${Math.floor(ms / 3_600_000)}h`;
-};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -162,7 +143,18 @@ const avatarStyles = StyleSheet.create({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 interface Props {
-  route: { params?: { movieId?: string; movieTitle?: string; moviePoster?: string; contentType?: 'movie' | 'tv' } };
+  route: {
+    params?: {
+      movieId?: string;
+      movieTitle?: string;
+      moviePoster?: string;
+      contentType?: 'movie' | 'tv';
+      /** Skip the home Create/Join screen and create a party immediately. */
+      autoCreate?: boolean;
+      /** Skip the home screen and auto-join this party code (e.g. from an invite notification). */
+      autoJoinCode?: string;
+    };
+  };
   navigation: any;
 }
 
@@ -215,18 +207,27 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
   const [partyId, setPartyId] = useState<string | null>(null);
   const [party, setParty] = useState<PartyDoc | null>(null);
   const [members, setMembers] = useState<PartyMember[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatText, setChatText] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [sendingMsg, setSendingMsg] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const autoActionRef = useRef(false);
+
+  // Shared chat logic — also drives the floating chat button in this screen and PlayerScreen.
+  const {
+    messages,
+    chatText,
+    setChatText,
+    sendMessage,
+    sendingMsg,
+    unreadCount,
+    markSeen,
+    currentUid,
+  } = useWatchPartyChat(partyId);
 
   const unsubParty = useRef<(() => void) | null>(null);
   const unsubMembers = useRef<(() => void) | null>(null);
-  const unsubChat = useRef<(() => void) | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -235,9 +236,22 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
     return () => {
       unsubParty.current?.();
       unsubMembers.current?.();
-      unsubChat.current?.();
     };
   }, []);
+
+  // Skip the home Create/Join screen entirely when arriving from a movie page
+  // (autoCreate) or from an invite notification (autoJoinCode).
+  useEffect(() => {
+    if (autoActionRef.current || screen !== 'home' || !user) return;
+    if (params.autoCreate && params.movieId) {
+      autoActionRef.current = true;
+      handleCreateParty();
+    } else if (params.autoJoinCode) {
+      autoActionRef.current = true;
+      handleJoinParty(params.autoJoinCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, screen]);
 
   // Auto-navigate ALL members (host + guests) when party status → 'watching'
   useEffect(() => {
@@ -247,6 +261,8 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
         title: party.movieTitle,
         poster: party.moviePoster,
         contentType: party.contentType,
+        partyId,
+        partyIsHost: party.hostUid === user?.uid,
       });
     }
   }, [party?.status, screen]);
@@ -279,13 +295,6 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
         setMembers(ms);
       }
     );
-    // Chat
-    const chatQ = query(collection(db, 'watchParties', pid, 'chat'), orderBy('createdAt', 'asc'));
-    unsubChat.current = onSnapshot(chatQ, (snap) => {
-      const msgs: ChatMessage[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-      setMessages(msgs);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-    });
   }, []);
 
   const handleCreateParty = async () => {
@@ -329,9 +338,9 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   };
 
-  const handleJoinParty = async () => {
+  const handleJoinParty = async (codeOverride?: string) => {
     if (!user || !userProfile) return;
-    const code = joinCode.trim().toUpperCase();
+    const code = (codeOverride ?? joinCode).trim().toUpperCase();
     if (code.length < 6) {
       Alert.alert('Invalid Code', 'Enter the 6-character party code.');
       return;
@@ -388,11 +397,9 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
               }
               unsubParty.current?.();
               unsubMembers.current?.();
-              unsubChat.current?.();
               setScreen('home');
               setParty(null);
               setMembers([]);
-              setMessages([]);
               setPartyId(null);
             } catch (err) {
               console.error('[WatchParty] leave error:', err);
@@ -437,25 +444,6 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
     // Host navigates immediately; guests navigate via the party status listener below
   };
 
-  const handleSendMessage = async () => {
-    if (!user || !userProfile || !chatText.trim() || !partyId) return;
-    setSendingMsg(true);
-    try {
-      await addDoc(collection(db, 'watchParties', partyId, 'chat'), {
-        uid: user.uid,
-        displayName: userProfile.displayName,
-        photoURL: userProfile.photoURL ?? null,
-        text: chatText.trim(),
-        createdAt: serverTimestamp(),
-      });
-      setChatText('');
-    } catch (err) {
-      console.error('[WatchParty] send message error:', err);
-    } finally {
-      setSendingMsg(false);
-    }
-  };
-
   const handleShareCode = async () => {
     if (!party) return;
     await Share.share({
@@ -466,6 +454,21 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
   const isHost = party?.hostUid === user?.uid;
   const membersReady = members.filter(m => !m.isHost && m.isReady).length;
   const membersTotal = members.filter(m => !m.isHost).length;
+
+  // ── Auto create/join loading (skips the home screen entirely) ──────────────
+  if (screen === 'home' && ((params.autoCreate && params.movieId) || params.autoJoinCode)) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#000', '#0a0a0a', '#000']} style={StyleSheet.absoluteFill} />
+        <View style={styles.autoLoadingWrap}>
+          <ActivityIndicator color={colors.gold} size="large" />
+          <Text style={styles.autoLoadingText}>
+            {params.autoCreate ? 'Creating your Watch Party…' : 'Joining Watch Party…'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   // ── Home screen (create/join) ──────────────────────────────────────────────
   if (screen === 'home') {
@@ -615,7 +618,7 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
 
           <TouchableOpacity
             style={[styles.joinBtn, (joining || joinCode.length < 6) && styles.joinBtnDisabled]}
-            onPress={handleJoinParty}
+            onPress={() => handleJoinParty()}
             disabled={joining || joinCode.length < 6}
             activeOpacity={0.85}
           >
@@ -661,7 +664,6 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
 
       <ScrollView
         style={styles.lobbyScroll}
-        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -680,6 +682,17 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
           </Animated.View>
         )}
 
+        {/* Invite friends */}
+        <TouchableOpacity
+          style={styles.inviteBtnRow}
+          onPress={() => setShowInvite(true)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="person-add" size={18} color={colors.gold} />
+          <Text style={styles.inviteBtnRowText}>👥 Invite Friends</Text>
+          <Ionicons name="chevron-forward" size={18} color="#444" />
+        </TouchableOpacity>
+
         {/* Members */}
         <View style={styles.membersSection}>
           <Text style={styles.sectionLabel}>
@@ -693,72 +706,37 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
           </ScrollView>
         </View>
 
-        {/* Chat */}
-        <View style={styles.chatSection}>
-          <Text style={styles.sectionLabel}>Party Chat</Text>
-          {messages.length === 0 ? (
-            <View style={styles.chatEmpty}>
-              <Ionicons name="chatbubbles-outline" size={28} color="#333" />
-              <Text style={styles.chatEmptyText}>No messages yet. Say hi! 👋</Text>
-            </View>
-          ) : (
-            messages.map((msg) => (
-              <View
-                key={msg.id}
-                style={[
-                  styles.chatMsg,
-                  msg.uid === user?.uid && styles.chatMsgOwn,
-                ]}
-              >
-                {msg.uid !== user?.uid && (
-                  <View style={styles.chatAvatar}>
-                    {msg.photoURL ? (
-                      <Image source={{ uri: msg.photoURL }} style={styles.chatAvatarImg} />
-                    ) : (
-                      <View style={[styles.chatAvatarImg, styles.chatAvatarFallback]}>
-                        <Text style={styles.chatAvatarInitials}>{initials(msg.displayName)}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-                <View style={[styles.chatBubble, msg.uid === user?.uid && styles.chatBubbleOwn]}>
-                  {msg.uid !== user?.uid && (
-                    <Text style={styles.chatSender}>{msg.displayName.split(' ')[0]}</Text>
-                  )}
-                  <Text style={styles.chatText}>{msg.text}</Text>
-                  <Text style={styles.chatTime}>{formatTime(msg.createdAt)}</Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
         <View style={{ height: 16 }} />
       </ScrollView>
 
+      {/* Floating chat button + slide-up panel */}
+      <WatchPartyChatFab
+        messages={messages}
+        chatText={chatText}
+        setChatText={setChatText}
+        onSend={sendMessage}
+        sendingMsg={sendingMsg}
+        unreadCount={unreadCount}
+        currentUid={currentUid}
+        onOpen={markSeen}
+        bottomOffset={96}
+      />
+
+      {party && (
+        <InviteFriendsModal
+          visible={showInvite}
+          onClose={() => setShowInvite(false)}
+          partyId={partyId ?? ''}
+          partyCode={party.code}
+          movieId={party.movieId}
+          movieTitle={party.movieTitle}
+          moviePoster={party.moviePoster}
+          contentType={party.contentType}
+        />
+      )}
+
       {/* Bottom actions */}
       <View style={styles.lobbyBottom}>
-        {/* Chat input */}
-        <View style={styles.chatInputRow}>
-          <TextInput
-            style={styles.chatInput}
-            value={chatText}
-            onChangeText={setChatText}
-            placeholder="Say something..."
-            placeholderTextColor="#444"
-            returnKeyType="send"
-            onSubmitEditing={handleSendMessage}
-            maxLength={200}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!chatText.trim() || sendingMsg) && styles.sendBtnDisabled]}
-            onPress={handleSendMessage}
-            disabled={!chatText.trim() || sendingMsg}
-          >
-            <Ionicons name="send" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
         {/* Action button */}
         {isHost ? (
           <TouchableOpacity style={styles.startBtn} onPress={handleStartParty} activeOpacity={0.88}>
@@ -797,6 +775,24 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
+
+  autoLoadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  autoLoadingText: { color: '#999', fontSize: 14, fontWeight: '600' },
+
+  inviteBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(212,175,55,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.25)',
+  },
+  inviteBtnRowText: { flex: 1, color: colors.gold, fontSize: 14, fontWeight: '700' },
 
   // Home
   homeScroll: { paddingBottom: 60 },
