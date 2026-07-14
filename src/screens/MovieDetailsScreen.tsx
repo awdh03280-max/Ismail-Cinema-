@@ -64,6 +64,7 @@ import {
   getFavorites,
   addToContinueWatching,
   getPlaybackPosition,
+  saveLastWatchedEpisode,
 } from '../storage/storage';
 import { colors } from '../theme/colors';
 import CastCard from '../components/CastCard';
@@ -518,6 +519,8 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       watchedAt: Date.now(),
       contentType: 'tv',
     });
+    // Persist last-watched episode so EpisodeBrowser can auto-continue
+    saveLastWatchedEpisode(movieId, season, episode.episode_number, episode.name).catch(() => {});
     const genres = movie.Genre
       ? movie.Genre.split(',').map((g: string) => g.trim())
       : [];

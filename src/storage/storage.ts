@@ -304,6 +304,51 @@ export const isEpisodeWatched = async (
   }
 };
 
+// ── Last Watched Episode (per show) ───────────────────────────────────────
+
+const LAST_WATCHED_EPISODE_KEY = '@ismail_cinema_last_watched_ep';
+
+interface LastWatchedEpisodeRecord {
+  [showId: string]: {
+    season: number;
+    episode: number;
+    episodeTitle: string;
+    timestamp: number;
+  };
+}
+
+export const saveLastWatchedEpisode = async (
+  showId: string,
+  season: number,
+  episode: number,
+  episodeTitle: string,
+): Promise<void> => {
+  return withWriteLock(LAST_WATCHED_EPISODE_KEY, async () => {
+    try {
+      const raw = await AsyncStorage.getItem(LAST_WATCHED_EPISODE_KEY);
+      const record: LastWatchedEpisodeRecord = raw ? JSON.parse(raw) : {};
+      record[showId] = { season, episode, episodeTitle, timestamp: Date.now() };
+      await AsyncStorage.setItem(LAST_WATCHED_EPISODE_KEY, JSON.stringify(record));
+    } catch (error) {
+      console.error('Error saving last watched episode:', error);
+    }
+  });
+};
+
+export const getLastWatchedEpisode = async (
+  showId: string,
+): Promise<{ season: number; episode: number; episodeTitle: string } | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_WATCHED_EPISODE_KEY);
+    if (!raw) return null;
+    const record: LastWatchedEpisodeRecord = JSON.parse(raw);
+    return record[showId] ?? null;
+  } catch (error) {
+    console.error('Error getting last watched episode:', error);
+    return null;
+  }
+};
+
 // ── Language ───────────────────────────────────────────────────────────────
 
 export const setLanguage = async (language: 'en' | 'ar'): Promise<void> => {
