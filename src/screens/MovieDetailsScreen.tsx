@@ -931,6 +931,13 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
                   name={c.name}
                   role={c.character}
                   profilePath={c.profilePath}
+                  onPress={() =>
+                    navigation.navigate('ActorProfile', {
+                      personId: c.id,
+                      name: c.name,
+                      profilePath: c.profilePath,
+                    })
+                  }
                 />
               ))}
             </ScrollView>

@@ -53,6 +53,13 @@ export type RootStackParamList = {
   };
   NotificationsScreen: undefined;
 
+  // Actor / Person profile
+  ActorProfile: {
+    personId: number;
+    name: string;
+    profilePath: string | null;
+  };
+
   // Watch Party
   WatchParty: {
     movieId?: string;

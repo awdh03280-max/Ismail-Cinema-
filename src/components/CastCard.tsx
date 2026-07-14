@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
@@ -7,11 +7,12 @@ interface CastCardProps {
   name: string;
   role?: string;
   profilePath: string | null;
+  onPress?: () => void;
 }
 
-const CastCard: React.FC<CastCardProps> = ({ name, role, profilePath }) => {
+const CastCard: React.FC<CastCardProps> = ({ name, role, profilePath, onPress }) => {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={onPress ? 0.75 : 1}>
       <View style={styles.avatarWrap}>
         {profilePath ? (
           <Image source={{ uri: profilePath }} style={styles.avatar} />
@@ -29,7 +30,7 @@ const CastCard: React.FC<CastCardProps> = ({ name, role, profilePath }) => {
           {role}
         </Text>
       )}
-    </View>
+    </TouchableOpacity>
   );
 };
 

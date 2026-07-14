@@ -24,6 +24,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import WatchPartyScreen from '../screens/WatchPartyScreen';
 import MovieListScreen from '../screens/MovieListScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
+import ActorProfileScreen from '../screens/ActorProfileScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -85,6 +86,15 @@ const playerScreen = (
   />
 );
 
+// ── Actor Profile screen (shared across stacks) ───────────────────────────────
+const actorProfileScreen = (
+  <Stack.Screen
+    name="ActorProfile"
+    component={ActorProfileScreen as AnyScreen}
+    options={{ headerShown: false, animation: 'slide_from_right' }}
+  />
+);
+
 // ── Social screens (shared across stacks) ────────────────────────────────────
 // Followers/Following/Notifications/WatchParty are auth-gated — browsing
 // stays open, but these user-specific features require sign-in.
@@ -111,6 +121,7 @@ const HomeStack = () => (
     <Stack.Screen name="HomeScreen" component={HomeScreen} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ headerShown: true }} />
     {playerScreen}
+    {actorProfileScreen}
     {socialScreens}
   </Stack.Navigator>
 );
@@ -120,6 +131,7 @@ const SearchStack = () => (
     <Stack.Screen name="SearchScreen" component={SearchScreen} options={{ title: 'Search' }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
+    {actorProfileScreen}
     {socialScreens}
   </Stack.Navigator>
 );
@@ -129,6 +141,7 @@ const ContinueWatchingStack = () => (
     <Stack.Screen name="ContinueWatchingScreen" component={ContinueWatchingScreen} options={{ title: 'Continue Watching' }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
+    {actorProfileScreen}
     {socialScreens}
   </Stack.Navigator>
 );
@@ -138,6 +151,7 @@ const DownloadsStack = () => (
     <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} options={{ title: 'Downloads' }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
+    {actorProfileScreen}
     {socialScreens}
   </Stack.Navigator>
 );
@@ -150,6 +164,7 @@ const ProfileStack = () => (
     <Stack.Screen name="CinemaQuizScreen" component={CinemaQuizScreen as AnyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
     {playerScreen}
+    {actorProfileScreen}
     {socialScreens}
     <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: 'Family Mode' }} />
     <Stack.Screen name="FamilyModePin" component={FamilyModePinScreen} options={{ headerShown: false, animation: 'slide_from_bottom' }} />

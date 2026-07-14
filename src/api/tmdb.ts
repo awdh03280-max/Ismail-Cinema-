@@ -886,6 +886,124 @@ export const searchAll = async (query: string): Promise<Movie[]> => {
   return [...movies, ...shows];
 };
 
+// ── Person / Actor API ────────────────────────────────────────────────────────
+
+/** Full profile returned by /person/{id} */
+export interface PersonDetails {
+  id: number;
+  name: string;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  popularity: number;
+  profile_path: string | null;
+  known_for_department: string;
+  also_known_as: string[];
+  gender: number; // 0=unspecified, 1=female, 2=male, 3=non-binary
+}
+
+/** One entry from /person/{id}/combined_credits */
+export interface PersonCredit {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  release_date: string;
+  vote_average: number;
+  vote_count: number;
+  character: string;
+  job: string | null;
+  media_type: 'movie' | 'tv';
+  overview: string;
+}
+
+export interface PersonCombinedCredits {
+  cast: PersonCredit[];
+  crew: PersonCredit[];
+}
+
+const PROFILE_URL_LG = 'https://image.tmdb.org/t/p/h632';
+const PROFILE_URL_SM = 'https://image.tmdb.org/t/p/w185';
+
+/** Full biography, stats, and metadata for a person. */
+export const getPersonDetails = async (personId: number): Promise<PersonDetails> => {
+  const res = await api.get(`/person/${personId}`, {
+    params: { api_key: API_KEY },
+  });
+  const d = res.data;
+  return {
+    id: d.id,
+    name: d.name || '',
+    biography: d.biography || '',
+    birthday: d.birthday || null,
+    deathday: d.deathday || null,
+    place_of_birth: d.place_of_birth || null,
+    popularity: d.popularity || 0,
+    profile_path: d.profile_path ? `${PROFILE_URL_LG}${d.profile_path}` : null,
+    known_for_department: d.known_for_department || 'Acting',
+    also_known_as: d.also_known_as || [],
+    gender: d.gender ?? 0,
+  };
+};
+
+/** All movie + TV credits for a person, deduplicated by id+type. */
+export const getPersonCombinedCredits = async (
+  personId: number,
+): Promise<PersonCombinedCredits> => {
+  const res = await api.get(`/person/${personId}/combined_credits`, {
+    params: { api_key: API_KEY },
+  });
+
+  const mapCredit = (c: any, type: 'movie' | 'tv'): PersonCredit => ({
+    id: c.id,
+    title: c.title || c.name || '',
+    poster_path: c.poster_path ? `${IMAGE_URL}${c.poster_path}` : null,
+    backdrop_path: c.backdrop_path ? `${BACKDROP_URL}${c.backdrop_path}` : null,
+    release_date: c.release_date || c.first_air_date || '',
+    vote_average: c.vote_average || 0,
+    vote_count: c.vote_count || 0,
+    character: c.character || '',
+    job: c.job || null,
+    media_type: type,
+    overview: c.overview || '',
+  });
+
+  // Deduplicate by id+type, keep highest vote_count entry
+  const dedupe = (list: PersonCredit[]): PersonCredit[] => {
+    const map = new Map<string, PersonCredit>();
+    for (const c of list) {
+      const key = `${c.media_type}-${c.id}`;
+      const existing = map.get(key);
+      if (!existing || c.vote_count > existing.vote_count) map.set(key, c);
+    }
+    return Array.from(map.values());
+  };
+
+  const rawCast: any[] = res.data.cast || [];
+  const rawCrew: any[] = res.data.crew || [];
+
+  const cast = dedupe(
+    rawCast
+      .filter((c: any) => c.media_type === 'movie' || c.media_type === 'tv')
+      .map((c: any) => mapCredit(c, c.media_type))
+      .sort((a, b) => b.vote_count - a.vote_count),
+  );
+
+  const crew = dedupe(
+    rawCrew
+      .filter((c: any) => c.media_type === 'movie' || c.media_type === 'tv')
+      .map((c: any) => mapCredit(c, c.media_type))
+      .sort((a, b) => b.vote_count - a.vote_count),
+  );
+
+  return { cast, crew };
+};
+
+/** Small profile image URL (for cast cards etc.) */
+export const getSmallProfileUrl = (path: string | null): string | null =>
+  path ? `${PROFILE_URL_SM}${path.replace(/^https:\/\/[^/]+\/[^/]+\//, '/')}` : null;
+
 /** Content feed for a given navigation category — hero + carousels. */
 export interface CategoryFeed {
   hero: Movie[];
