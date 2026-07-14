@@ -7,6 +7,7 @@ import { FamilyModeProvider } from './src/context/FamilyModeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { XPProvider } from './src/context/XPContext';
 import { FollowProvider } from './src/context/FollowContext';
+import { DownloadProvider } from './src/context/DownloadContext';
 import AchievementUnlockToast from './src/components/AchievementUnlockToast';
 
 export default function App() {
@@ -15,12 +16,14 @@ export default function App() {
       <XPProvider>
         <FollowProvider>
         <FamilyModeProvider>
+        <DownloadProvider>
           <I18nextProvider i18n={i18next}>
             <View style={styles.container}>
               <Navigation />
               <AchievementUnlockToast />
             </View>
           </I18nextProvider>
+        </DownloadProvider>
         </FamilyModeProvider>
         </FollowProvider>
       </XPProvider>

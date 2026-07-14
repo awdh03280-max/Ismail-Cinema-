@@ -56,6 +56,7 @@ import {
   TVEpisode,
 } from '../api/tmdb';
 import EpisodeBrowser from '../components/EpisodeBrowser';
+import { useDownloads } from '../context/DownloadContext';
 import {
   addToFavorites,
   removeFromFavorites,
@@ -261,6 +262,8 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const { movieId, contentType } = route.params;
   const { user, userProfile } = useAuth();
   const { trackContentWatched, trackComment } = useXP();
+  const { downloads, getDownload, startDownload, pauseDownload, resumeDownload, cancelDownload, deleteDownload } = useDownloads();
+  const downloadRecord = getDownload(movieId);
 
   // Content state
   const [movie, setMovie] = useState<Movie | null>(null);
@@ -386,6 +389,29 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
         addedAt: Date.now(),
       });
       setIsFav(true);
+    }
+  };
+
+  const handleDownloadPress = () => {
+    if (!movie) return;
+    const record = getDownload(movieId);
+    if (!record || record.status === 'canceled') {
+      startDownload(movie);
+    } else if (record.status === 'downloading' || record.status === 'queued') {
+      pauseDownload(movieId);
+    } else if (record.status === 'paused') {
+      resumeDownload(movieId);
+    } else if (record.status === 'failed') {
+      startDownload(movie);
+    } else if (record.status === 'completed') {
+      Alert.alert(
+        'Remove download?',
+        `Delete the offline copy of "${movie.Title}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => deleteDownload(movieId) },
+        ]
+      );
     }
   };
 
@@ -749,6 +775,67 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
               <Ionicons name="people" size={18} color={colors.gold} />
               <Text style={styles.watchPartyText}>👥 Create Watch Party</Text>
             </TouchableOpacity>
+
+            {/* Download — saves an offline info package (poster/backdrop/metadata) */}
+            <View style={styles.downloadRow}>
+              <TouchableOpacity
+                style={styles.downloadBtn}
+                onPress={handleDownloadPress}
+                activeOpacity={0.8}
+              >
+                {downloadRecord?.status === 'downloading' || downloadRecord?.status === 'queued' ? (
+                  <>
+                    <Ionicons name="pause" size={18} color={colors.gold} />
+                    <Text style={styles.downloadText}>
+                      Downloading  ·  {Math.round((downloadRecord.progress || 0) * 100)}%
+                    </Text>
+                  </>
+                ) : downloadRecord?.status === 'paused' ? (
+                  <>
+                    <Ionicons name="play" size={18} color={colors.gold} />
+                    <Text style={styles.downloadText}>Resume Download</Text>
+                  </>
+                ) : downloadRecord?.status === 'completed' ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
+                    <Text style={styles.downloadText}>Downloaded</Text>
+                  </>
+                ) : downloadRecord?.status === 'failed' ? (
+                  <>
+                    <Ionicons name="refresh" size={18} color={colors.red} />
+                    <Text style={[styles.downloadText, { color: colors.red }]}>Retry Download</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="download-outline" size={18} color={colors.gold} />
+                    <Text style={styles.downloadText}>Download</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {(downloadRecord?.status === 'downloading' ||
+                downloadRecord?.status === 'queued' ||
+                downloadRecord?.status === 'paused') && (
+                <TouchableOpacity
+                  style={styles.downloadCancelBtn}
+                  onPress={() => cancelDownload(movieId)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="close" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {(downloadRecord?.status === 'downloading' || downloadRecord?.status === 'paused') && (
+              <View style={styles.downloadProgressTrack}>
+                <View
+                  style={[
+                    styles.downloadProgressFill,
+                    { width: `${Math.max(2, Math.round((downloadRecord.progress || 0) * 100))}%` as DimensionValue },
+                  ]}
+                />
+              </View>
+            )}
           </View>
 
           {/* ── Overview ──────────────────────────────────────────────── */}
@@ -1503,6 +1590,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+
+  // ── Download ──
+  downloadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  downloadBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  downloadText: {
+    color: colors.gold,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  downloadCancelBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  downloadProgressTrack: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#1e1e1e',
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  downloadProgressFill: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.gold,
   },
 });
 

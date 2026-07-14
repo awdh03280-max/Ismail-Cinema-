@@ -23,6 +23,7 @@ import FollowingScreen from '../screens/FollowingScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import WatchPartyScreen from '../screens/WatchPartyScreen';
 import MovieListScreen from '../screens/MovieListScreen';
+import DownloadsScreen from '../screens/DownloadsScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -132,6 +133,15 @@ const ContinueWatchingStack = () => (
   </Stack.Navigator>
 );
 
+const DownloadsStack = () => (
+  <Stack.Navigator screenOptions={sharedHeader}>
+    <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} options={{ title: 'Downloads' }} />
+    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
+    {playerScreen}
+    {socialScreens}
+  </Stack.Navigator>
+);
+
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={sharedHeader}>
     <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
@@ -189,6 +199,14 @@ const BottomTabNavigator = () => {
         options={{
           title: t('continue_watching'),
           tabBarIcon: ({ color, size }) => <Ionicons name="play-circle" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Downloads"
+        component={DownloadsStack}
+        options={{
+          title: 'Downloads',
+          tabBarIcon: ({ color, size }) => <Ionicons name="download" size={size} color={color} />,
         }}
       />
       <Tab.Screen
