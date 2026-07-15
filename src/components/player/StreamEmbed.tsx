@@ -1,9 +1,11 @@
 /**
- * TypeScript type shim.
- * Metro bundler replaces this at runtime with StreamEmbed.native.tsx (iOS/Android)
- * or StreamEmbed.web.tsx (browser), which are the actual implementations.
+ * StreamEmbed — bare-extension re-export.
  *
- * This file exists only so tsc can resolve the import in PlayerScreen.
+ * Metro's platform resolver picks StreamEmbed.native.tsx / StreamEmbed.web.tsx
+ * automatically at bundle/runtime, so this file is never actually bundled.
+ * It exists purely so TypeScript (which does not apply Metro's platform
+ * resolution) can resolve the extensionless `./StreamEmbed` import used by
+ * PlayerScreen.
  */
 import StreamEmbed from './StreamEmbed.web';
 export default StreamEmbed;

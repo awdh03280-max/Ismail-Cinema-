@@ -97,3 +97,7 @@ src/
 - Google Sign-In must stay working
 - Firebase must stay working
 - Movie Player (WebView embed) must stay unchanged
+
+## Maintenance Log
+
+- **2026-07-15**: Re-imported project — ran `npm install --legacy-peer-deps` (node_modules was empty) and confirmed the `Start application` workflow boots cleanly on port 5000. Removed confirmed-dead files: duplicate `src/localization/` (i18n dir, superseded by `src/i18n/`) and unused `src/components/HeroBanner.tsx` (never imported; Home's hero section is built inline in `HomeScreen.tsx`). Verified with `tsc --noEmit` after cleanup.
