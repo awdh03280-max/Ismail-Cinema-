@@ -15,7 +15,9 @@
  * All transform/opacity animations use the ND helper (Platform.OS !== 'web').
  * The native driver is not available on web; JS fallback is used there.
  *
- * Sound: expo-av on native (cinema_startup.wav), Web Audio API on web.
+ * Sound: expo-av on native (assets/audio/cinematic_intro.mp3 — fades in on
+ * start, fades out before handoff, plays once, never loops), Web Audio API
+ * synthesis on web.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -57,12 +59,50 @@ async function playCinematicSound(): Promise<() => void> {
 async function playNativeSound(): Promise<() => void> {
   try {
     await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+
+    // TODO: This is a placeholder cinematic intro track (synthesized deep
+    // bass + orchestral rise). Swap in your own licensed cinematic intro by
+    // replacing assets/audio/cinematic_intro.mp3 with a same-named file —
+    // no code changes needed.
     const { sound } = await Audio.Sound.createAsync(
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      require('../../assets/sounds/cinema_startup.wav'),
-      { shouldPlay: true, volume: 0.85 },
+      require('../../assets/audio/cinematic_intro.mp3'),
+      { shouldPlay: true, volume: 0, isLooping: false },
     );
-    return () => { sound.unloadAsync().catch(() => {}); };
+
+    const TARGET_VOLUME    = 0.7;   // ~70% as specified
+    const FADE_IN_MS       = 300;   // smooth fade-in at startup
+    const FADE_OUT_MS      = 550;   // smooth fade-out before handoff
+    const FADE_OUT_START_MS = 2200; // finishes fading by ~2750ms, before onComplete (3000ms)
+    const STEP_MS = 30;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const intervals: ReturnType<typeof setInterval>[] = [];
+
+    /** Ramps sound volume from `from` → `to` over `durationMs`, in small steps. */
+    const rampVolume = (from: number, to: number, durationMs: number) => {
+      const steps = Math.max(1, Math.round(durationMs / STEP_MS));
+      let step = 0;
+      const iv = setInterval(() => {
+        step += 1;
+        const v = from + (to - from) * (step / steps);
+        sound.setVolumeAsync(Math.min(1, Math.max(0, v))).catch(() => {});
+        if (step >= steps) clearInterval(iv);
+      }, STEP_MS);
+      intervals.push(iv);
+    };
+
+    // Fade in immediately — does not delay the splash animation.
+    rampVolume(0, TARGET_VOLUME, FADE_IN_MS);
+
+    // Fade out before the splash hands off to Home (single play, no loop).
+    timers.push(setTimeout(() => rampVolume(TARGET_VOLUME, 0, FADE_OUT_MS), FADE_OUT_START_MS));
+
+    return () => {
+      timers.forEach(clearTimeout);
+      intervals.forEach(clearInterval);
+      sound.unloadAsync().catch(() => {});
+    };
   } catch {
     return () => {};
   }
