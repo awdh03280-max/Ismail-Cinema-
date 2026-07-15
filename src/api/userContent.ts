@@ -18,7 +18,6 @@ import {
   query,
   where,
   onSnapshot,
-  updateDoc,
   increment,
 } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore';

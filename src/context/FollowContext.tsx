@@ -28,7 +28,6 @@ import {
   getDocs,
   updateDoc,
   setDoc,
-  increment,
   writeBatch,
   orderBy,
   limit,

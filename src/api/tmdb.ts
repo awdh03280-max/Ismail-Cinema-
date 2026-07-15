@@ -798,25 +798,6 @@ export const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'new', label: 'New Releases' },
 ];
 
-/** Browse titles by a single genre chip — special-cased for Anime / Animation. Kept for backwards compatibility. */
-export const discoverByGenre = async (genre: string): Promise<Movie[]> => {
-  if (genre === 'Anime') return getAnime();
-  if (genre === 'Animation') return getAnimationMovies();
-
-  const genreId = GENRE_IDS[genre];
-  if (!genreId) return [];
-
-  const res = await api.get('/discover/movie', {
-    params: {
-      api_key: API_KEY,
-      with_genres: genreId,
-      sort_by: 'popularity.desc',
-    },
-  });
-
-  return res.data.results.map((m: any) => mapMovie(m, 'movie'));
-};
-
 /**
  * Browse titles matching ANY of the selected genre chips (OR semantics), across
  * movies + TV. Anime / Animation are special-cased (language/genre combos that

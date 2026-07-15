@@ -45,7 +45,7 @@ const HALO_R  = GLOW_R * 0.55;            // inner ambient halo diameter
 /**
  * Plays the startup sound.
  * – Web  : programmatic synthesis via Web Audio API (no file required)
- * – Native: expo-av loads cinema_startup.wav from the asset bundle
+ * – Native: expo-av loads cinematic_intro.mp3 from the asset bundle
  *
  * Returns a cleanup function that stops / unloads the sound.
  */
@@ -60,10 +60,6 @@ async function playNativeSound(): Promise<() => void> {
   try {
     await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
 
-    // TODO: This is a placeholder cinematic intro track (synthesized deep
-    // bass + orchestral rise). Swap in your own licensed cinematic intro by
-    // replacing assets/audio/cinematic_intro.mp3 with a same-named file —
-    // no code changes needed.
     const { sound } = await Audio.Sound.createAsync(
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       require('../../assets/audio/cinematic_intro.mp3'),
