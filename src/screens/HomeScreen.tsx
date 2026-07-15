@@ -6,6 +6,7 @@ import {
   StatusBar,
   RefreshControl,
   Text,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -228,8 +229,11 @@ const HomeScreen = ({ navigation }: any) => {
         {/* Header overlaid on hero */}
         <View style={styles.headerOverlay}>
           <View style={styles.logoRow}>
-            <Text style={styles.logoText}>ISMAIL</Text>
-            <Text style={styles.logoAccent}>CINEMA</Text>
+            <Image
+              source={require('../../assets/branding/logo.png')}
+              style={styles.headerLogoImage}
+              resizeMode="contain"
+            />
           </View>
 
           {isEnabled && (
@@ -300,20 +304,11 @@ const styles = StyleSheet.create({
   },
   logoRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
+    alignItems: 'center',
   },
-  logoText: {
-    color: colors.red,
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  logoAccent: {
-    color: colors.gold,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 2,
+  headerLogoImage: {
+    width: 40,
+    height: 40,
   },
   fmBadge: {
     flexDirection: 'row',

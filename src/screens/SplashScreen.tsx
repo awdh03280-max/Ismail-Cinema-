@@ -22,12 +22,12 @@ import React, { useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
-  Text,
   Animated,
   Dimensions,
   StatusBar,
   Platform,
   Easing,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
@@ -37,9 +37,7 @@ import { Audio } from 'expo-av';
 const { width: W, height: H } = Dimensions.get('window');
 const GLOW_R  = Math.min(W, H) * 0.85;   // outer burst ring diameter
 const HALO_R  = GLOW_R * 0.55;            // inner ambient halo diameter
-const LOGO_FS = Math.min(W * 0.20, 92);   // "ISMAIL" font size
-const SUB_FS  = Math.min(W * 0.085, 36);  // "CINEMA" font size
-const DIV_W   = Math.min(W * 0.38, 210);  // divider width
+const LOGO_SIZE = Math.min(W * 0.62, 320); // brand logo image size
 
 // ── Cinematic sound ───────────────────────────────────────────────────────────
 
@@ -146,16 +144,9 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const sweepX       = useRef(new Animated.Value(-1)).current;
   const sweepOpacity = useRef(new Animated.Value(0)).current;
 
-  // "ISMAIL" logo: zoom-in with micro-overshoot
+  // Brand logo: zoom-in with micro-overshoot
   const logoScale   = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
-
-  // Divider line
-  const divOpacity = useRef(new Animated.Value(0)).current;
-
-  // "CINEMA" subtitle: drift up + fade
-  const subY       = useRef(new Animated.Value(18)).current;
-  const subOpacity = useRef(new Animated.Value(0)).current;
 
   // Full-screen black exit overlay
   const exitOpacity = useRef(new Animated.Value(0)).current;
@@ -209,16 +200,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       Animated.timing(logoScale,     { toValue: 1.0,  duration: 220, easing: Easing.inOut(Easing.quad), ...ND }),
     ]).start();
 
-    // ── 5. Gold divider line ───────────────────────────────────────────────────
-    Animated.timing(divOpacity, { toValue: 0.9, duration: 420, delay: 780, easing: ease, ...ND }).start();
-
-    // ── 6. "CINEMA" subtitle drift-up ─────────────────────────────────────────
-    Animated.parallel([
-      Animated.timing(subOpacity, { toValue: 1,  duration: 460, delay: 800, easing: ease, ...ND }),
-      Animated.timing(subY,       { toValue: 0,  duration: 460, delay: 800, easing: ease, ...ND }),
-    ]).start();
-
-    // ── 7. Exit: fade to black, then hand off ─────────────────────────────────
+    // ── 5. Exit: fade to black, then hand off ─────────────────────────────────
     const exitTimer = setTimeout(() => {
       Animated.timing(exitOpacity, {
         toValue: 1,
@@ -290,29 +272,18 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* ── Logo group ── */}
+      {/* ── Logo ── */}
       <Animated.View
         style={[
           styles.logoGroup,
           { opacity: logoOpacity, transform: [{ scale: logoScale }] },
         ]}
       >
-        {/* "ISMAIL" — bold, red, glowing, gold-lit edge */}
-        <Text style={styles.logoText} numberOfLines={1} adjustsFontSizeToFit>
-          ISMAIL
-        </Text>
-
-        {/* Divider — gold */}
-        <Animated.View style={[styles.divider, { opacity: divOpacity }]} />
-
-        {/* "CINEMA" — gold, letter-spaced */}
-        <Animated.View
-          style={{ opacity: subOpacity, transform: [{ translateY: subY }] }}
-        >
-          <Text style={styles.subText} numberOfLines={1} adjustsFontSizeToFit>
-            CINEMA
-          </Text>
-        </Animated.View>
+        <Image
+          source={require('../../assets/branding/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </Animated.View>
 
       {/* ── Exit overlay — fades screen to black ── */}
@@ -395,50 +366,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  logoText: {
-    fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-black', default: 'System' }),
-    fontSize: LOGO_FS,
-    fontWeight: '900',
-    color: '#e50914',
-    letterSpacing: Math.max(4, W * 0.011),
-    ...Platform.select({
-      web: { textShadow: '0 0 28px rgba(229, 9, 20, 0.65), 0 0 46px rgba(212, 175, 55, 0.3)' } as object,
-      default: {
-        textShadowColor: 'rgba(229, 9, 20, 0.65)',
-        textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 28,
-      },
-    }),
-  },
-  divider: {
-    width: DIV_W,
-    height: 1.5,
-    backgroundColor: '#d4af37',
-    marginVertical: 14,
-    ...Platform.select({
-      web: { boxShadow: '0 0 12px 3px rgba(212, 175, 55, 0.8)' } as object,
-      default: {
-        shadowColor: '#d4af37',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 10,
-      },
-    }),
-  },
-  subText: {
-    fontSize: SUB_FS,
-    fontWeight: '300',
-    color: '#f4d675',
-    letterSpacing: Math.max(8, W * 0.017),
-    opacity: 0.95,
-    ...Platform.select({
-      web: { textShadow: '0 0 16px rgba(212, 175, 55, 0.5)' } as object,
-      default: {
-        textShadowColor: 'rgba(212, 175, 55, 0.5)',
-        textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 16,
-      },
-    }),
+  logoImage: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
   },
 
   // Full-screen black exit overlay

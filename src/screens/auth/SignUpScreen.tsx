@@ -9,6 +9,7 @@ import {
   Platform,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -132,11 +133,11 @@ const SignUpScreen = ({ navigation }: any) => {
 
           {/* Brand */}
           <View style={styles.brand}>
-            <View style={styles.logoRing}>
-              <Ionicons name="film" size={36} color="#e50914" />
-            </View>
-            <Text style={styles.logoTitle}>ISMAIL</Text>
-            <Text style={styles.logoSub}>CINEMA</Text>
+            <Image
+              source={require('../../../assets/branding/logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Card */}
@@ -256,13 +257,7 @@ const styles = StyleSheet.create({
   backText: { color: '#aaa', fontSize: 14 },
 
   brand: { alignItems: 'center', marginBottom: 28 },
-  logoRing: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#1a1a2e', borderWidth: 2, borderColor: '#e50914',
-    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
-  },
-  logoTitle: { fontSize: 24, fontWeight: '900', color: '#e50914', letterSpacing: 3 },
-  logoSub: { fontSize: 12, fontWeight: '300', color: '#aaa', letterSpacing: 5, marginTop: 2 },
+  brandLogo: { width: 100, height: 100 },
 
   card: {
     backgroundColor: 'rgba(26,26,46,0.95)', borderRadius: 20,
