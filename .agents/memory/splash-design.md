@@ -23,6 +23,12 @@ description: Architecture decisions and pitfalls for the Ismail Cinema splash sc
 - `textShadow*` → `textShadow`. Same.
 - `pointerEvents` prop on LinearGradient → wrap in a View with `pointerEvents="none"` (ViewProps) instead of passing it to LinearGradient directly.
 
+## Wordmark is text, not an image
+- The centerpiece is a **text-based wordmark** — "ISMAIL" (zoom-in, red/gold glow) + gold divider line + "CINEMA" (drift-up, letter-spaced gold) — rendered with `Animated.Text`/`View`, not an `Image`.
+- A later branding-asset swap incorrectly replaced this wordmark with `require('../../assets/branding/logo.png')` (the new app-icon logo) inside `SplashScreen.tsx`. That was wrong — the new logo belongs on app icon/adaptive-icon/favicon only, never as the splash centerpiece.
+- **Why:** user explicitly asked to keep the original animated Ismail Cinema text branding on the splash screen; the new logo swap silently broke that even though the file's own docblock still described the original text animation.
+- **How to apply:** if `assets/branding/logo.png` (or any new master logo) ever gets swapped in, do NOT touch `SplashScreen.tsx`'s wordmark — only regenerate `icon.png`/`adaptive-icon.png`/`favicon.png`. LoginScreen/SignUpScreen/HomeScreen header logo usages are separate and were not part of this splash issue.
+
 ## How to apply
 - Keep all glow animations as transform/opacity — never animate backgroundColor or shadow values.
 - Any new timed event after the exit starts (> 1980 ms) should be covered by `clearTimeout` in the cleanup return.

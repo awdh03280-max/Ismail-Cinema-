@@ -21,13 +21,13 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   Animated,
   Dimensions,
   StatusBar,
   Platform,
   Easing,
-  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
@@ -37,7 +37,6 @@ import { Audio } from 'expo-av';
 const { width: W, height: H } = Dimensions.get('window');
 const GLOW_R  = Math.min(W, H) * 0.85;   // outer burst ring diameter
 const HALO_R  = GLOW_R * 0.55;            // inner ambient halo diameter
-const LOGO_SIZE = Math.min(W * 0.62, 320); // brand logo image size
 
 // ── Cinematic sound ───────────────────────────────────────────────────────────
 
@@ -144,9 +143,17 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const sweepX       = useRef(new Animated.Value(-1)).current;
   const sweepOpacity = useRef(new Animated.Value(0)).current;
 
-  // Brand logo: zoom-in with micro-overshoot
+  // "ISMAIL" wordmark: zoom-in with micro-overshoot
   const logoScale   = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
+
+  // Gold divider line beneath the wordmark
+  const dividerOpacity = useRef(new Animated.Value(0)).current;
+  const dividerScale   = useRef(new Animated.Value(0.2)).current;
+
+  // "CINEMA" — drifts up while fading in
+  const cinemaOpacity     = useRef(new Animated.Value(0)).current;
+  const cinemaTranslateY  = useRef(new Animated.Value(16)).current;
 
   // Full-screen black exit overlay
   const exitOpacity = useRef(new Animated.Value(0)).current;
@@ -191,13 +198,25 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     ]).start();
     Animated.timing(sweepOpacity, { toValue: 0, duration: 400, delay: 900, ...ND }).start();
 
-    // ── 4. Logo zoom-in with slight spring overshoot ──────────────────────────
+    // ── 4. "ISMAIL" zoom-in with slight spring overshoot ──────────────────────
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(logoOpacity, { toValue: 1,    duration: 400, delay: 340, easing: ease, ...ND }),
-        Animated.timing(logoScale,   { toValue: 1.08, duration: 540, delay: 340, easing: ease, ...ND }),
+        Animated.timing(logoOpacity, { toValue: 1,    duration: 400, delay: 300, easing: ease, ...ND }),
+        Animated.timing(logoScale,   { toValue: 1.08, duration: 540, delay: 300, easing: ease, ...ND }),
       ]),
       Animated.timing(logoScale,     { toValue: 1.0,  duration: 220, easing: Easing.inOut(Easing.quad), ...ND }),
+    ]).start();
+
+    // ── 4b. Gold divider line fades in ────────────────────────────────────────
+    Animated.parallel([
+      Animated.timing(dividerOpacity, { toValue: 1,   duration: 360, delay: 680, easing: ease, ...ND }),
+      Animated.timing(dividerScale,   { toValue: 1,   duration: 360, delay: 680, easing: ease, ...ND }),
+    ]).start();
+
+    // ── 4c. "CINEMA" drifts up while fading in ────────────────────────────────
+    Animated.parallel([
+      Animated.timing(cinemaOpacity,    { toValue: 1, duration: 500, delay: 680, easing: ease, ...ND }),
+      Animated.timing(cinemaTranslateY, { toValue: 0, duration: 500, delay: 680, easing: ease, ...ND }),
     ]).start();
 
     // ── 5. Exit: fade to black, then hand off ─────────────────────────────────
@@ -272,19 +291,33 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* ── Logo ── */}
-      <Animated.View
-        style={[
-          styles.logoGroup,
-          { opacity: logoOpacity, transform: [{ scale: logoScale }] },
-        ]}
-      >
-        <Image
-          source={require('../../assets/branding/logo.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
+      {/* ── Wordmark: ISMAIL / divider / CINEMA ── */}
+      <View style={styles.logoGroup}>
+        <Animated.Text
+          style={[
+            styles.ismailText,
+            { opacity: logoOpacity, transform: [{ scale: logoScale }] },
+          ]}
+        >
+          ISMAIL
+        </Animated.Text>
+
+        <Animated.View
+          style={[
+            styles.divider,
+            { opacity: dividerOpacity, transform: [{ scaleX: dividerScale }] },
+          ]}
         />
-      </Animated.View>
+
+        <Animated.Text
+          style={[
+            styles.cinemaText,
+            { opacity: cinemaOpacity, transform: [{ translateY: cinemaTranslateY }] },
+          ]}
+        >
+          CINEMA
+        </Animated.Text>
+      </View>
 
       {/* ── Exit overlay — fades screen to black ── */}
       {/* No pointerEvents needed: by the time opacity=1, onComplete() unmounts this */}
@@ -361,14 +394,48 @@ const styles = StyleSheet.create({
     }),
   },
 
-  // Logo
+  // Wordmark
   logoGroup: {
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  logoImage: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
+  ismailText: {
+    fontSize: Math.min(W * 0.14, 56),
+    fontWeight: '800',
+    letterSpacing: 4,
+    color: '#ffffff',
+    textAlign: 'center',
+    ...Platform.select({
+      web: { textShadow: '0 0 18px rgba(229,9,20,0.85), 0 0 34px rgba(212,175,55,0.55)' } as object,
+      default: {
+        textShadowColor: 'rgba(229, 9, 20, 0.85)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 18,
+      },
+    }),
+  },
+  divider: {
+    width: 120,
+    height: 2,
+    backgroundColor: '#d4af37',
+    marginVertical: 10,
+    ...Platform.select({
+      web: { boxShadow: '0 0 8px 1px rgba(212,175,55,0.75)' } as object,
+      default: {
+        shadowColor: '#d4af37',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+        elevation: 0,
+      },
+    }),
+  },
+  cinemaText: {
+    fontSize: Math.min(W * 0.055, 22),
+    fontWeight: '600',
+    letterSpacing: 8,
+    color: '#d4af37',
+    textAlign: 'center',
   },
 
   // Full-screen black exit overlay
