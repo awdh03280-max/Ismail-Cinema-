@@ -39,6 +39,10 @@ import { useFamilyMode } from '../context/FamilyModeContext';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 
+// Debounce delay (ms) before firing a live-suggestions request while typing.
+const SUGGEST_DEBOUNCE_MS = 280;
+const MIN_SUGGEST_LENGTH = 2;
+
 const SearchScreen = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
@@ -49,8 +53,15 @@ const SearchScreen = ({ navigation }: any) => {
   const [searched, setSearched] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
+  // Live "search as you type" suggestions dropdown
+  const [suggestions, setSuggestions] = useState<Movie[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const { isEnabled, isUnlocked, filterMovies } = useFamilyMode();
   const requestId = useRef(0);
+  const suggestRequestId = useRef(0);
+  const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const isAllActive = selectedGenres.size === 0 && searched && !searchQuery.trim();
 
@@ -82,6 +93,48 @@ const SearchScreen = ({ navigation }: any) => {
     }
   };
 
+  // ── Live suggestions while typing ────────────────────────────────────────
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (suggestTimer.current) clearTimeout(suggestTimer.current);
+
+    if (q.length < MIN_SUGGEST_LENGTH) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setSuggestLoading(false);
+      return;
+    }
+
+    setSuggestLoading(true);
+    suggestTimer.current = setTimeout(async () => {
+      const myRequest = ++suggestRequestId.current;
+      try {
+        const results = await searchAll(q);
+        if (myRequest !== suggestRequestId.current) return;
+        setSuggestions(filterMovies(results).slice(0, 6));
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error('Error fetching search suggestions:', error);
+      } finally {
+        if (myRequest === suggestRequestId.current) setSuggestLoading(false);
+      }
+    }, SUGGEST_DEBOUNCE_MS);
+
+    return () => {
+      if (suggestTimer.current) clearTimeout(suggestTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  const dismissSuggestions = () => {
+    setShowSuggestions(false);
+  };
+
+  const handleSuggestionPress = (movie: Movie) => {
+    dismissSuggestions();
+    navigation.navigate('MovieDetails', { movieId: movie.imdbID, contentType: movie.contentType });
+  };
+
   const runFetch = useCallback(async (fetcher: () => Promise<Movie[]>) => {
     const currentRequest = ++requestId.current;
     try {
@@ -110,12 +163,14 @@ const SearchScreen = ({ navigation }: any) => {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
+    dismissSuggestions();
     animateLayout();
     setSelectedGenres(new Set());
     runFetch(() => searchAll(searchQuery));
   };
 
   const handleAllPress = () => {
+    dismissSuggestions();
     animateLayout();
     setSearchQuery('');
     setSelectedGenres(new Set());
@@ -123,6 +178,7 @@ const SearchScreen = ({ navigation }: any) => {
   };
 
   const handleGenrePress = (genre: string) => {
+    dismissSuggestions();
     animateLayout();
     setSearchQuery('');
     setSelectedGenres(prev => {
@@ -154,6 +210,7 @@ const SearchScreen = ({ navigation }: any) => {
   };
 
   const handleClear = () => {
+    dismissSuggestions();
     animateLayout();
     setSearchQuery('');
     if (selectedGenres.size === 0) {
@@ -194,13 +251,49 @@ const SearchScreen = ({ navigation }: any) => {
         </Text>
       </View>
 
-      <SearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        onSearch={handleSearch}
-        onClear={handleClear}
-        placeholder="Search movies & shows..."
-      />
+      <View style={styles.searchBarWrap}>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSearch={handleSearch}
+          onClear={handleClear}
+          placeholder="Search movies & shows..."
+        />
+
+        {showSuggestions && searchQuery.trim().length >= MIN_SUGGEST_LENGTH && (
+          <View style={styles.suggestDropdown}>
+            {suggestLoading && suggestions.length === 0 ? (
+              <View style={styles.suggestLoadingRow}>
+                <LoadingSpinner />
+              </View>
+            ) : suggestions.length === 0 ? (
+              <Text style={styles.suggestEmptyText}>No quick matches — try Search</Text>
+            ) : (
+              suggestions.map((item) => (
+                <TouchableOpacity
+                  key={`${item.contentType}-${item.imdbID}`}
+                  style={styles.suggestRow}
+                  onPress={() => handleSuggestionPress(item)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={item.contentType === 'tv' ? 'tv-outline' : 'film-outline'}
+                    size={16}
+                    color={colors.textMuted}
+                    style={styles.suggestIcon}
+                  />
+                  <View style={styles.suggestTextCol}>
+                    <Text style={styles.suggestTitle} numberOfLines={1}>{item.Title}</Text>
+                    <Text style={styles.suggestMeta} numberOfLines={1}>
+                      {item.Year || ''}{item.contentType === 'tv' ? ' · Series' : ''}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
+      </View>
 
       <View style={styles.filterSection}>
         <View style={styles.filterLabelRow}>
@@ -348,6 +441,59 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headerLogoRed: { color: colors.gold },
+  searchBarWrap: {
+    position: 'relative',
+    zIndex: 20,
+  },
+  suggestDropdown: {
+    position: 'absolute',
+    top: 62,
+    left: 16,
+    right: 16,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 30,
+  },
+  suggestLoadingRow: {
+    paddingVertical: 10,
+  },
+  suggestEmptyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    textAlign: 'center',
+  },
+  suggestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  suggestIcon: {
+    marginRight: 10,
+  },
+  suggestTextCol: {
+    flex: 1,
+  },
+  suggestTitle: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  suggestMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 1,
+  },
   filterSection: {
     paddingBottom: 4,
   },

@@ -107,6 +107,8 @@ const FavoritesScreen = ({ navigation }: any) => {
                         productionCompanies: [],
                         imdbExternalId: '',
                         tagline: '',
+                        Budget: '',
+                        Revenue: '',
                       }}
                       onPress={() => handleMoviePress(item)}
                       isFavorite={true}

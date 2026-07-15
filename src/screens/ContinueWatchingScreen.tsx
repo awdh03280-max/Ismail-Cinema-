@@ -178,6 +178,8 @@ const ContinueWatchingScreen = ({ navigation }: any) => {
                       productionCompanies: [],
                       imdbExternalId: '',
                       tagline: '',
+                      Budget: '',
+                      Revenue: '',
                     }}
                     onPress={() => handleMoviePress(item)}
                   />

@@ -10,7 +10,7 @@ interface MovieCardProps {
   isFavorite?: boolean;
 }
 
-const MovieCard: React.FC<MovieCardProps> = ({
+const MovieCardComponent: React.FC<MovieCardProps> = ({
   movie,
   onPress,
   onFavoritePress,
@@ -140,5 +140,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+// Movie rows can render dozens of cards at once (Home sections, Search grid,
+// Similar/Recommended rails) — memoize so an unrelated parent re-render (e.g.
+// a sibling favorite toggling) doesn't re-render every card in the list.
+const MovieCard = React.memo(MovieCardComponent);
 
 export default MovieCard;

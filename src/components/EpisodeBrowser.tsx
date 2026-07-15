@@ -11,8 +11,10 @@
  *  - Auto-continue: opens the first unwatched episode of the last-active season
  */
 import React, {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
 } from 'react';
@@ -20,6 +22,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  findNodeHandle,
   Image,
   ScrollView,
   StyleSheet,
@@ -46,6 +49,16 @@ interface EpisodeBrowserProps {
   showId: string;
   seasons: TVSeasonInfo[];
   onPlayEpisode: (season: number, episode: TVEpisode) => void;
+  /** Fired once the continue episode for the initial season has been
+   * determined (or found to be null) — used by the parent screen to
+   * auto-scroll to it. */
+  onContinueEpisodeReady?: (hasContinueTarget: boolean) => void;
+}
+
+/** Imperative handle exposed to the parent so it can auto-scroll its own
+ * outer ScrollView to the "Continue" episode card once layout settles. */
+export interface EpisodeBrowserHandle {
+  scrollToContinueEpisode: (outerScrollView: ScrollView | null, topOffset?: number) => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -514,11 +527,12 @@ const cardStyles = StyleSheet.create({
 
 // ── Main EpisodeBrowser ───────────────────────────────────────────────────────
 
-const EpisodeBrowser: React.FC<EpisodeBrowserProps> = ({
+const EpisodeBrowser = forwardRef<EpisodeBrowserHandle, EpisodeBrowserProps>(({
   showId,
   seasons,
   onPlayEpisode,
-}) => {
+  onContinueEpisodeReady,
+}, ref) => {
   const [selectedSeason, setSelectedSeason] = useState<number>(
     seasons[0]?.season_number ?? 1,
   );
@@ -537,6 +551,10 @@ const EpisodeBrowser: React.FC<EpisodeBrowserProps> = ({
   const listFade = useRef(new Animated.Value(1)).current;
   const listSlide = useRef(new Animated.Value(0)).current;
   const seasonTabsRef = useRef<ScrollView>(null);
+  const rootRef = useRef<View>(null);
+  // episode id → y offset relative to the (non-animated) episode list container
+  const cardOffsets = useRef<Map<number, number>>(new Map());
+  const readyReportedRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -699,8 +717,36 @@ const EpisodeBrowser: React.FC<EpisodeBrowserProps> = ({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  useImperativeHandle(ref, () => ({
+    scrollToContinueEpisode: (outerScrollView, topOffset = 90) => {
+      if (!outerScrollView || !continueEpisode) return;
+      const cardY = cardOffsets.current.get(continueEpisode.id);
+      const rootNode = rootRef.current;
+      const scrollHandle = findNodeHandle(outerScrollView);
+      if (cardY == null || !rootNode || !scrollHandle) return;
+      // @ts-ignore — measureLayout exists on the underlying native view
+      rootNode.measureLayout(
+        scrollHandle,
+        (_x: number, rootY: number) => {
+          outerScrollView.scrollTo({ y: Math.max(0, rootY + cardY - topOffset), animated: true });
+        },
+        () => {},
+      );
+    },
+  }), [continueEpisode]);
+
+  // Report once per season load whether there's a continue target — the
+  // parent screen uses this to decide whether to auto-scroll.
+  useEffect(() => {
+    if (loading) return;
+    if (readyReportedRef.current) return;
+    readyReportedRef.current = true;
+    onContinueEpisodeReady?.(!!continueEpisode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, episodes]);
+
   return (
-    <View style={styles.root}>
+    <View style={styles.root} ref={rootRef}>
 
       {/* ── Section header ── */}
       <View style={styles.sectionHeader}>
@@ -811,14 +857,18 @@ const EpisodeBrowser: React.FC<EpisodeBrowserProps> = ({
               const watched = isWatched(ep);
               const isContinue = continueEpisode?.id === ep.id;
               return (
-                <EpisodeCard
+                <View
                   key={ep.id}
-                  episode={ep}
-                  watched={watched}
-                  isContinue={isContinue}
-                  onPlay={() => onPlayEpisode(ep.season_number, ep)}
-                  onToggleWatched={() => toggleWatched(ep)}
-                />
+                  onLayout={(e) => cardOffsets.current.set(ep.id, e.nativeEvent.layout.y)}
+                >
+                  <EpisodeCard
+                    episode={ep}
+                    watched={watched}
+                    isContinue={isContinue}
+                    onPlay={() => onPlayEpisode(ep.season_number, ep)}
+                    onToggleWatched={() => toggleWatched(ep)}
+                  />
+                </View>
               );
             })}
           </View>
@@ -826,7 +876,9 @@ const EpisodeBrowser: React.FC<EpisodeBrowserProps> = ({
       </Animated.View>
     </View>
   );
-};
+});
+
+EpisodeBrowser.displayName = 'EpisodeBrowser';
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 

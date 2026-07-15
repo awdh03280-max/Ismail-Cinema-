@@ -10,7 +10,7 @@ interface CastCardProps {
   onPress?: () => void;
 }
 
-const CastCard: React.FC<CastCardProps> = ({ name, role, profilePath, onPress }) => {
+const CastCardComponent: React.FC<CastCardProps> = ({ name, role, profilePath, onPress }) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={onPress ? 0.75 : 1}>
       <View style={styles.avatarWrap}>
@@ -81,5 +81,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+
+// Cast carousels render 15-20+ cards per movie — memoize to avoid re-rendering
+// the whole row when unrelated screen state changes.
+const CastCard = React.memo(CastCardComponent);
 
 export default CastCard;

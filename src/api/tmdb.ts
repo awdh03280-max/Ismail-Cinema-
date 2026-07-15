@@ -50,6 +50,10 @@ export interface Movie {
   numberOfSeasons?: number;
   /** Season list (TV shows only — populated by getTVShowDetails). */
   seasons?: TVSeasonInfo[];
+  /** Production budget, formatted (e.g. "$160,000,000"). Movies only. */
+  Budget: string;
+  /** Box office revenue, formatted (e.g. "$1,004,558,444"). Movies only. */
+  Revenue: string;
 }
 
 function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
@@ -87,8 +91,14 @@ function mapMovie(movie: any, contentType: 'movie' | 'tv' = 'movie'): Movie {
     productionCompanies: [],
     imdbExternalId: '',
     tagline: movie.tagline || '',
+    Budget: '',
+    Revenue: '',
   };
 }
+
+/** Format a raw dollar amount as "$160,000,000"; empty string if zero/unset. */
+const formatUsd = (amount: number | undefined): string =>
+  amount && amount > 0 ? `${amount.toLocaleString('en-US')}` : '';
 
 export const searchMovies = async (query: string): Promise<Movie[]> => {
   const res = await api.get('/search/movie', {
@@ -364,6 +374,10 @@ export const getMovieDetails = async (id: string): Promise<Movie> => {
 
   // IMDb external ID
   movie.imdbExternalId = res.data.external_ids?.imdb_id || '';
+
+  // Budget / Revenue (movies only — TMDB doesn't track these for TV)
+  movie.Budget = formatUsd(res.data.budget);
+  movie.Revenue = formatUsd(res.data.revenue);
 
   return movie;
 };

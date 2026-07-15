@@ -55,7 +55,7 @@ import {
   CreditsResult,
   TVEpisode,
 } from '../api/tmdb';
-import EpisodeBrowser from '../components/EpisodeBrowser';
+import EpisodeBrowser, { EpisodeBrowserHandle } from '../components/EpisodeBrowser';
 import { useDownloads } from '../context/DownloadContext';
 import {
   addToFavorites,
@@ -65,6 +65,7 @@ import {
   addToContinueWatching,
   getPlaybackPosition,
   saveLastWatchedEpisode,
+  getLastWatchedEpisode,
 } from '../storage/storage';
 import { colors } from '../theme/colors';
 import CastCard from '../components/CastCard';
@@ -114,6 +115,31 @@ const formatRelativeTime = (ts: Timestamp | null): string => {
   if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
   if (ms < 2_592_000_000) return `${Math.floor(ms / 86_400_000)}d ago`;
   return ts.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+/** Human-readable language name from an ISO 639-1 code (e.g. "en" → "English"). */
+const languageName = (code: string): string => {
+  if (!code) return '';
+  try {
+    // @ts-ignore — Intl.DisplayNames isn't in every RN JS engine's lib.d.ts
+    const dn = new Intl.DisplayNames(['en'], { type: 'language' });
+    return dn.of(code) || code.toUpperCase();
+  } catch {
+    return code.toUpperCase();
+  }
+};
+
+const formatReleaseDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
 };
 
 const initials = (name: string) =>
@@ -285,6 +311,12 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const [savedProgress, setSavedProgress] = useState<number>(0);
   const [overviewExpanded, setOverviewExpanded] = useState(false);
   const [myRating, setMyRating] = useState(0);
+  // TV only — last-watched episode, used to drive the "Continue Watching" button
+  const [lastWatchedEp, setLastWatchedEp] = useState<{
+    season: number;
+    episode: number;
+    episodeTitle: string;
+  } | null>(null);
 
   // Comments state
   const [comments, setComments] = useState<Comment[]>([]);
@@ -298,6 +330,8 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const playPulse = useRef(new Animated.Value(1)).current;
   const heroFade = useRef(new Animated.Value(0)).current;
+  const outerScrollRef = useRef<ScrollView>(null);
+  const episodeBrowserRef = useRef<EpisodeBrowserHandle>(null);
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
@@ -356,6 +390,12 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       setLoading(true);
       const details = await getDetails(movieId, contentType);
       setMovie(details);
+
+      if (contentType === 'tv') {
+        getLastWatchedEpisode(movieId)
+          .then((lw) => setLastWatchedEp(lw))
+          .catch(() => setLastWatchedEp(null));
+      }
 
       const [fav, pos, creditsRes, similarRes, recommendedRes, allFavs, existingRating] =
         await Promise.all([
@@ -576,6 +616,43 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
     });
   };
 
+  /** Primary CTA for TV shows — jumps straight into the next unwatched episode
+   * (or S1E1 for a first-time viewer) instead of trying to "play the series". */
+  const handleContinueSeries = async () => {
+    if (!movie) return;
+    const season = lastWatchedEp?.season ?? movie.seasons?.[0]?.season_number ?? 1;
+    const episodeNumber = lastWatchedEp?.episode ?? 1;
+    const episodeTitle = lastWatchedEp?.episodeTitle ?? '';
+    const runtimeMinutes = parseRuntime(movie.Runtime);
+
+    await addToContinueWatching({
+      imdbID: movieId,
+      title: movie.Title,
+      poster: movie.Poster,
+      progress: 0,
+      watchedAt: Date.now(),
+      contentType: 'tv',
+    });
+    saveLastWatchedEpisode(movieId, season, episodeNumber, episodeTitle).catch(() => {});
+    const genres = movie.Genre
+      ? movie.Genre.split(',').map((g: string) => g.trim())
+      : [];
+    const episodeKey = `${movieId}_s${season}e${episodeNumber}`;
+    trackContentWatched({ imdbID: episodeKey, contentType: 'tv', genres, isNewEpisode: true }).catch(() => {});
+
+    navigation.navigate('Player', {
+      movieId,
+      title: movie.Title,
+      poster: movie.Poster,
+      contentType: 'tv',
+      runtimeMinutes,
+      initialProgress: 0,
+      season,
+      episode: episodeNumber,
+      episodeTitle,
+    });
+  };
+
   // ── Loading / Error States ─────────────────────────────────────────────────
 
   if (loading) {
@@ -613,6 +690,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
     >
       <ScrollView
+        ref={outerScrollRef}
         style={styles.root}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 48 }}
@@ -763,7 +841,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
             <Animated.View style={{ transform: [{ scale: playPulse }] }}>
               <TouchableOpacity
                 style={styles.playButton}
-                onPress={handleWatchNow}
+                onPress={contentType === 'tv' ? handleContinueSeries : handleWatchNow}
                 activeOpacity={0.88}
               >
                 <LinearGradient
@@ -772,9 +850,17 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
                   end={{ x: 1, y: 1 }}
                   style={styles.playGradient}
                 >
-                  <Ionicons name={hasProgress ? 'play-circle' : 'play'} size={26} color="#fff" />
+                  <Ionicons
+                    name={contentType === 'tv' ? 'play-circle' : (hasProgress ? 'play-circle' : 'play')}
+                    size={26}
+                    color="#fff"
+                  />
                   <Text style={styles.playButtonText}>
-                    {hasProgress ? `Resume  ·  ${Math.round(savedProgress)}%` : 'Watch Now'}
+                    {contentType === 'tv'
+                      ? (lastWatchedEp
+                          ? `Continue  ·  S${lastWatchedEp.season} E${lastWatchedEp.episode}`
+                          : 'Play  ·  S1 E1')
+                      : (hasProgress ? `Resume  ·  ${Math.round(savedProgress)}%` : 'Watch Now')}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -904,6 +990,35 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
             </View>
           )}
 
+          {/* ── Movie Facts ───────────────────────────────────────────────── */}
+          {(() => {
+            const facts: { label: string; value: string }[] = [
+              { label: 'Release Date', value: formatReleaseDate(movie.Released) },
+              { label: 'Runtime', value: movie.Runtime },
+              { label: 'Genres', value: genreList.join(', ') },
+              { label: 'Country', value: movie.Country },
+              { label: 'Language', value: languageName(movie.Language) },
+              { label: 'Budget', value: movie.Budget },
+              { label: 'Revenue', value: movie.Revenue },
+            ].filter((f) => !!f.value);
+
+            if (facts.length === 0) return null;
+
+            return (
+              <View style={styles.factsSection}>
+                <Text style={styles.sectionHeading}>Movie Facts</Text>
+                <View style={styles.factsGrid}>
+                  {facts.map((f) => (
+                    <View key={f.label} style={styles.factItem}>
+                      <Text style={styles.factLabel}>{f.label}</Text>
+                      <Text style={styles.factValue}>{f.value}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
+
           {/* ── Your Rating ───────────────────────────────────────────────── */}
           {user && (
             <View style={styles.ratingSection}>
@@ -934,9 +1049,19 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
         {contentType === 'tv' && movie.seasons && movie.seasons.length > 0 && (
           <Animated.View style={{ opacity: fadeAnim }}>
             <EpisodeBrowser
+              ref={episodeBrowserRef}
               showId={movieId}
               seasons={movie.seasons}
               onPlayEpisode={handlePlayEpisode}
+              onContinueEpisodeReady={(hasTarget) => {
+                // Only worth auto-scrolling for a returning viewer picking up
+                // mid-series — a brand-new viewer already sees S1E1 on screen.
+                if (hasTarget && lastWatchedEp) {
+                  setTimeout(() => {
+                    episodeBrowserRef.current?.scrollToContinueEpisode(outerScrollRef.current);
+                  }, 350);
+                }
+              }}
             />
           </Animated.View>
         )}
@@ -1411,6 +1536,37 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // ── Movie Facts ──
+  factsSection: {
+    paddingHorizontal: 18,
+    marginTop: 28,
+  },
+  factsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    marginHorizontal: -6,
+  },
+  factItem: {
+    width: '50%',
+    paddingHorizontal: 6,
+    marginBottom: 16,
+  },
+  factLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  factValue: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 19,
   },
 
   // ── Rating section ──

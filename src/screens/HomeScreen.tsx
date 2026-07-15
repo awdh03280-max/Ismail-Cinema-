@@ -74,6 +74,8 @@ const toContinueWatchingMovie = (m: ContinueWatchingMovie): Movie => {
     productionCompanies: [],
     imdbExternalId: '',
     tagline: '',
+    Budget: '',
+    Revenue: '',
   };
 };
 
