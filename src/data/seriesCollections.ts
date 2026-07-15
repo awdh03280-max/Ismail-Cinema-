@@ -73,4 +73,28 @@ export const SERIES_COLLECTIONS: SeriesCollection[] = [
     gradient: ['#1a0000', '#050000'],
     source: { type: 'tmdbCollection', collectionId: 313086 },
   },
+  {
+    id: 'piratescaribbean',
+    name: 'Pirates of the Caribbean',
+    subtitle: 'Why is the rum always gone?',
+    icon: '🏴‍☠️',
+    gradient: ['#003322', '#000d08'],
+    source: { type: 'tmdbCollection', collectionId: 295 },
+  },
+  {
+    id: 'transformers',
+    name: 'Transformers',
+    subtitle: 'More than meets the eye',
+    icon: '🤖',
+    gradient: ['#331a00', '#0d0700'],
+    source: { type: 'tmdbCollection', collectionId: 8650 },
+  },
+  {
+    id: 'finaldestination',
+    name: 'Final Destination',
+    subtitle: 'You can\u2019t cheat death',
+    icon: '💀',
+    gradient: ['#1a0011', '#050004'],
+    source: { type: 'tmdbCollection', collectionId: 8864 },
+  },
 ];
