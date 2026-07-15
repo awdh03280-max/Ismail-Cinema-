@@ -4,10 +4,8 @@
  * Per product requirement, browsing (Home/Search/Details/Player) never
  * requires auth. Authentication only happens here, from the Profile tab.
  *
- * Google Sign-In is fully wired to existing Firebase auth logic. Facebook
- * and Phone Number are presented as options but are not yet configured on
- * the Firebase project (no Facebook App ID / phone provider enabled) — they
- * show an informational alert instead of failing silently.
+ * Google Sign-In uses Firebase signInWithPopup (web) / expo-auth-session (native).
+ * Phone Sign-In uses Firebase signInWithPhoneNumber + invisible reCAPTCHA (web).
  */
 import React, { useEffect, useState } from 'react';
 import {
@@ -17,14 +15,15 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
-  Alert,
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, getAuthErrorMessage } from '../context/AuthContext';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
+import { usePhoneAuth } from '../hooks/usePhoneAuth';
 import SocialButton from '../components/auth/SocialButton';
+import PhoneAuthModal from '../components/auth/PhoneAuthModal';
 
 const ProfileSignInPrompt = ({ navigation }: any) => {
   const { googleRedirectError, clearGoogleRedirectError } = useAuth();
@@ -35,6 +34,12 @@ const ProfileSignInPrompt = ({ navigation }: any) => {
       const code: string = err?.code ?? '';
       if (code === 'auth/popup-closed-by-user') return;
       setApiError(code ? getAuthErrorMessage(code) : (err?.message || 'Google Sign-In failed. Please try again.'));
+    },
+  });
+
+  const phoneAuth = usePhoneAuth({
+    onSuccess: () => {
+      // Navigation is handled declaratively by RootNavigator auth state
     },
   });
 
@@ -55,17 +60,13 @@ const ProfileSignInPrompt = ({ navigation }: any) => {
   };
 
   const handleFacebook = () => {
-    Alert.alert(
-      'Facebook Sign-In',
-      'Facebook sign-in isn\u2019t configured for this app yet. Add a Facebook App ID in the Firebase console to enable it.'
-    );
+    // Facebook Sign-In is not configured — no Facebook App ID set up.
+    setApiError('Facebook sign-in isn\u2019t configured for this app yet.');
   };
 
   const handlePhone = () => {
-    Alert.alert(
-      'Phone Sign-In',
-      'Phone number sign-in isn\u2019t configured for this app yet. Enable the Phone provider in the Firebase console to turn it on.'
-    );
+    setApiError('');
+    phoneAuth.open();
   };
 
   const handleGuest = () => {
@@ -74,6 +75,7 @@ const ProfileSignInPrompt = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
+      <PhoneAuthModal phoneAuth={phoneAuth} />
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
       <LinearGradient
         colors={['#000000', '#0d0d0d']}

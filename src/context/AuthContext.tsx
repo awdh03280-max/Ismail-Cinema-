@@ -30,6 +30,9 @@ import {
   signInWithRedirect,
   getRedirectResult,
   signInWithCredential,
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  ConfirmationResult,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import type { Timestamp, FieldValue } from 'firebase/firestore';
@@ -42,7 +45,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoURL: string | null;
-  provider: 'email' | 'google';
+  provider: 'email' | 'google' | 'phone';
   createdAt: Timestamp | FieldValue | null;
   updatedAt: Timestamp | FieldValue | null;
 }
@@ -55,6 +58,10 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithGoogleCredential: (idToken: string) => Promise<void>;
+  /** Web-only: send SMS verification code. Returns ConfirmationResult. */
+  sendPhoneCode: (phoneNumber: string, containerId: string) => Promise<ConfirmationResult>;
+  /** Confirm the OTP from the SMS and complete phone sign-in. */
+  confirmPhoneOTP: (confirmation: ConfirmationResult, code: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -99,18 +106,19 @@ export const getAuthErrorMessage = (code: string): string => {
  */
 const deriveProvider = (
   user: FirebaseUser,
-  override?: 'email' | 'google'
-): 'email' | 'google' => {
+  override?: 'email' | 'google' | 'phone'
+): 'email' | 'google' | 'phone' => {
   if (override) return override;
   const pid = user.providerData?.[0]?.providerId ?? '';
   if (pid === 'google.com') return 'google';
+  if (pid === 'phone') return 'phone';
   return 'email';
 };
 
 /** Create or merge Firestore user profile after any sign-in. */
 const ensureUserProfile = async (
   user: FirebaseUser,
-  providerOverride?: 'email' | 'google',
+  providerOverride?: 'email' | 'google' | 'phone',
   displayName?: string
 ): Promise<UserProfile> => {
   const ref = doc(db, 'users', user.uid);
@@ -294,6 +302,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [], // auth and db are module-level singletons; no reactive dependencies needed
   );
 
+  // ── Phone Sign-In Step 1: send SMS code (web only) ────────────────────────
+  // RecaptchaVerifier is module-scoped so it survives across re-renders and
+  // can be cleared on error without recreating the whole provider instance.
+  const sendPhoneCode = useCallback(
+    async (phoneNumber: string, containerId: string): Promise<ConfirmationResult> => {
+      // Clear any stale verifier so we always start fresh per call.
+      if ((auth as any)._recaptchaVerifier) {
+        try { (auth as any)._recaptchaVerifier.clear(); } catch {}
+        (auth as any)._recaptchaVerifier = null;
+      }
+      const verifier = new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {},
+      });
+      (auth as any)._recaptchaVerifier = verifier;
+      try {
+        const result = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+        return result;
+      } catch (err) {
+        try { verifier.clear(); } catch {}
+        (auth as any)._recaptchaVerifier = null;
+        throw err;
+      }
+    },
+    [],
+  );
+
+  // ── Phone Sign-In Step 2: confirm OTP ─────────────────────────────────────
+  const confirmPhoneOTP = useCallback(
+    async (confirmation: ConfirmationResult, code: string): Promise<void> => {
+      const result = await confirmation.confirm(code);
+      const profile = await ensureUserProfile(result.user, 'phone');
+      setUserProfile(profile);
+    },
+    [],
+  );
+
   // ── Forgot Password ────────────────────────────────────────────────────────
   const forgotPassword = async (email: string): Promise<void> => {
     await sendPasswordResetEmail(auth, email);
@@ -326,6 +372,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         signIn,
         signInWithGoogle,
         signInWithGoogleCredential,
+        sendPhoneCode,
+        confirmPhoneOTP,
         forgotPassword,
         logout,
         refreshProfile,
