@@ -26,6 +26,7 @@ import MovieListScreen from '../screens/MovieListScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
 import ActorProfileScreen from '../screens/ActorProfileScreen';
 import CollectionScreen from '../screens/CollectionScreen';
+import SeriesCollectionScreen from '../screens/SeriesCollectionScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -111,6 +112,7 @@ const socialScreens = (
     <Stack.Screen name="WatchParty" component={GatedWatchPartyScreen} options={{ title: 'Watch Party', headerShown: false }} />
     <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: 'Movies' }} />
     <Stack.Screen name="Collection" component={CollectionScreen as AnyScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="SeriesCollection" component={SeriesCollectionScreen as AnyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />

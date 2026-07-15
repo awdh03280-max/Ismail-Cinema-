@@ -38,6 +38,7 @@ interface ActiveParty {
   id: string;
   code: string;
   hostUid: string;
+  hostName: string;
   movieId: string;
   movieTitle: string;
   moviePoster: string;
@@ -45,6 +46,68 @@ interface ActiveParty {
   status: 'waiting' | 'watching';
   createdAt: number;
 }
+
+/** Live participant count for one party row — subscribes to its members subcollection. */
+const usePartyMemberCount = (partyId: string): number => {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, 'watchParties', partyId, 'members'),
+      (snap) => setCount(snap.size),
+      () => setCount(0),
+    );
+    return unsub;
+  }, [partyId]);
+  return count;
+};
+
+/** One row in the "All Watch Parties" list — poster, title, host, participant count, Join. */
+const WatchPartyRow: React.FC<{
+  party: ActiveParty;
+  isLast: boolean;
+  onJoin: () => void;
+}> = ({ party, isLast, onJoin }) => {
+  const memberCount = usePartyMemberCount(party.id);
+  return (
+    <View style={[styles.partyRow, isLast && styles.settingItemLast]}>
+      {party.moviePoster ? (
+        <Image source={{ uri: party.moviePoster }} style={styles.partyPoster} />
+      ) : (
+        <View style={[styles.partyPoster, styles.partyPosterPlaceholder]}>
+          <Ionicons name="film" size={18} color={colors.gold} />
+        </View>
+      )}
+      <View style={styles.partyInfo}>
+        <Text style={styles.partyTitle} numberOfLines={1}>{party.movieTitle}</Text>
+        {!!party.hostName && (
+          <View style={styles.partyHostRow}>
+            <Ionicons name="star" size={10} color={colors.gold} />
+            <Text style={styles.partyHostText} numberOfLines={1}>{party.hostName}</Text>
+          </View>
+        )}
+        <View style={styles.partyStatusRow}>
+          <View
+            style={[
+              styles.partyStatusDot,
+              party.status === 'watching' ? styles.fmDotRed : styles.fmDotGreen,
+            ]}
+          />
+          <Text style={styles.partyStatusText}>
+            {party.status === 'watching' ? 'Watching now' : 'Waiting for members'}
+            {' · '}{memberCount} participant{memberCount !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.joinPartyBtn}
+        onPress={onJoin}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.joinPartyBtnText}>Join</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const ProfileScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
@@ -391,42 +454,12 @@ const ProfileScreen = ({ navigation }: any) => {
             <Text style={styles.sectionTitle}>All Watch Parties</Text>
             <View style={styles.card}>
               {activeParties.map((party, idx) => (
-                <View
+                <WatchPartyRow
                   key={party.id}
-                  style={[
-                    styles.partyRow,
-                    idx === activeParties.length - 1 && styles.settingItemLast,
-                  ]}
-                >
-                  {party.moviePoster ? (
-                    <Image source={{ uri: party.moviePoster }} style={styles.partyPoster} />
-                  ) : (
-                    <View style={[styles.partyPoster, styles.partyPosterPlaceholder]}>
-                      <Ionicons name="film" size={18} color={colors.gold} />
-                    </View>
-                  )}
-                  <View style={styles.partyInfo}>
-                    <Text style={styles.partyTitle} numberOfLines={1}>{party.movieTitle}</Text>
-                    <View style={styles.partyStatusRow}>
-                      <View
-                        style={[
-                          styles.partyStatusDot,
-                          party.status === 'watching' ? styles.fmDotRed : styles.fmDotGreen,
-                        ]}
-                      />
-                      <Text style={styles.partyStatusText}>
-                        {party.status === 'watching' ? 'Watching now' : 'Waiting for members'}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.joinPartyBtn}
-                    onPress={() => handleJoinParty(party)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.joinPartyBtnText}>Join</Text>
-                  </TouchableOpacity>
-                </View>
+                  party={party}
+                  isLast={idx === activeParties.length - 1}
+                  onJoin={() => handleJoinParty(party)}
+                />
               ))}
             </View>
           </View>
@@ -592,6 +625,8 @@ const styles = StyleSheet.create({
   },
   partyInfo: { flex: 1 },
   partyTitle: { fontSize: 14, color: '#fff', fontWeight: '700' },
+  partyHostRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  partyHostText: { fontSize: 11, color: colors.gold, fontWeight: '600' },
   partyStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   partyStatusDot: { width: 7, height: 7, borderRadius: 3.5 },
   partyStatusText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },

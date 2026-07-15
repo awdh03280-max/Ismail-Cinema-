@@ -67,6 +67,7 @@ interface PartyDoc {
   id: string;
   code: string;
   hostUid: string;
+  hostName: string;
   movieId: string;
   movieTitle: string;
   moviePoster: string;
@@ -309,6 +310,7 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
       const partyRef = await addDoc(collection(db, 'watchParties'), {
         code,
         hostUid: user.uid,
+        hostName: userProfile.displayName,
         movieId: params.movieId,
         movieTitle: params.movieTitle ?? '',
         moviePoster: params.moviePoster ?? '',
@@ -653,6 +655,15 @@ const WatchPartyScreen: React.FC<Props> = ({ route, navigation }) => {
         </TouchableOpacity>
         <View style={styles.lobbyHeaderCenter}>
           <Text style={styles.lobbyTitle} numberOfLines={1}>{party?.movieTitle ?? 'Watch Party'}</Text>
+          <View style={styles.hostedByRow}>
+            <Text style={styles.lobbyStatus} numberOfLines={1}>
+              Hosted by {party?.hostName ?? '...'}
+            </Text>
+            <View style={styles.hostBadgePill}>
+              <Ionicons name="star" size={9} color="#000" />
+              <Text style={styles.hostBadgePillText}>HOST</Text>
+            </View>
+          </View>
           <Text style={styles.lobbyStatus}>
             {party?.status === 'waiting' ? `${members.length} member${members.length !== 1 ? 's' : ''} joined` : 'Party started'}
           </Text>
@@ -931,6 +942,14 @@ const styles = StyleSheet.create({
   lobbyHeaderCenter: { flex: 1, marginHorizontal: 8 },
   lobbyTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
   lobbyStatus: { color: '#666', fontSize: 11, marginTop: 1 },
+  hostedByRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
+  hostBadgePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.gold,
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 6,
+  },
+  hostBadgePillText: { color: '#000', fontSize: 9, fontWeight: '900', letterSpacing: 0.4 },
   shareBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   lobbyScroll: { flex: 1 },
 

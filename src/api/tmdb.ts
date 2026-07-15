@@ -713,6 +713,32 @@ export const discoverTVByGenreIds = async (
   return (res.data.results || []).map((m: any) => mapMovie(m, 'tv'));
 };
 
+/** Movies belonging to a known TMDB "collection" (e.g. Harry Potter, John Wick). */
+export const getMoviesByCollectionId = async (collectionId: number): Promise<Movie[]> => {
+  const res = await api.get(`/collection/${collectionId}`, {
+    params: { api_key: API_KEY },
+  });
+  const parts = (res.data.parts || []) as any[];
+  return parts
+    .filter((m) => m.release_date)
+    .sort((a, b) => a.release_date.localeCompare(b.release_date))
+    .map((m) => mapMovie(m, 'movie'));
+};
+
+/** Movies produced by a known studio/company (e.g. Marvel Studios, DC Films). */
+export const getMoviesByCompanyId = async (companyId: number): Promise<Movie[]> => {
+  const res = await api.get('/discover/movie', {
+    params: {
+      api_key: API_KEY,
+      with_companies: companyId,
+      sort_by: 'primary_release_date.asc',
+      'primary_release_date.gte': '1990-01-01',
+      include_adult: false,
+    },
+  });
+  return (res.data.results || []).map((m: any) => mapMovie(m, 'movie'));
+};
+
 /** Newly released movies — "Recently Added" row. */
 export const getRecentlyAdded = async (): Promise<Movie[]> => {
   const res = await api.get('/movie/now_playing', {
