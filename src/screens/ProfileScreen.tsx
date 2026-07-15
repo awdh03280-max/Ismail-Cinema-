@@ -22,8 +22,29 @@ import { useFollow } from '../context/FollowContext';
 import { useXP } from '../context/XPContext';
 import { colors } from '../theme/colors';
 import ProfileSignInPrompt from './ProfileSignInPrompt';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  onSnapshot,
+  query,
+  where,
+  limit,
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
+
+interface ActiveParty {
+  id: string;
+  code: string;
+  hostUid: string;
+  movieId: string;
+  movieTitle: string;
+  moviePoster: string;
+  contentType: 'movie' | 'tv';
+  status: 'waiting' | 'watching';
+  createdAt: number;
+}
 
 const ProfileScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
@@ -32,6 +53,7 @@ const ProfileScreen = ({ navigation }: any) => {
   const [loggingOut, setLoggingOut] = useState(false);
   const [favoritesPublic, setFavoritesPublic] = useState(true);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
+  const [activeParties, setActiveParties] = useState<ActiveParty[]>([]);
 
   const { isEnabled, isUnlocked } = useFamilyMode();
   const { user, userProfile, logout, isLoading: authLoading } = useAuth();
@@ -54,6 +76,32 @@ const ProfileScreen = ({ navigation }: any) => {
       setFavoritesPublic(data?.privacySettings?.favoritesPublic !== false);
     }).catch(() => {});
   }, [user?.uid]);
+
+  // Live list of joinable Watch Parties (waiting for members or already playing).
+  useEffect(() => {
+    if (!user?.uid) return;
+    const q = query(
+      collection(db, 'watchParties'),
+      where('status', 'in', ['waiting', 'watching']),
+      limit(20)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const parties = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as ActiveParty[];
+      parties.sort((a, b) => b.createdAt - a.createdAt);
+      setActiveParties(parties);
+    }, () => setActiveParties([]));
+    return unsub;
+  }, [user?.uid]);
+
+  const handleJoinParty = (party: ActiveParty) => {
+    navigation.navigate('WatchParty', {
+      movieId: party.movieId,
+      movieTitle: party.movieTitle,
+      moviePoster: party.moviePoster,
+      contentType: party.contentType,
+      autoJoinCode: party.code,
+    });
+  };
 
   const handleToggleFavoritesPrivacy = async () => {
     if (!user?.uid) return;
@@ -337,6 +385,53 @@ const ProfileScreen = ({ navigation }: any) => {
           </View>
         </View>
 
+        {/* ── All Watch Parties ────────────────────────────────────────────── */}
+        {activeParties.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>All Watch Parties</Text>
+            <View style={styles.card}>
+              {activeParties.map((party, idx) => (
+                <View
+                  key={party.id}
+                  style={[
+                    styles.partyRow,
+                    idx === activeParties.length - 1 && styles.settingItemLast,
+                  ]}
+                >
+                  {party.moviePoster ? (
+                    <Image source={{ uri: party.moviePoster }} style={styles.partyPoster} />
+                  ) : (
+                    <View style={[styles.partyPoster, styles.partyPosterPlaceholder]}>
+                      <Ionicons name="film" size={18} color={colors.gold} />
+                    </View>
+                  )}
+                  <View style={styles.partyInfo}>
+                    <Text style={styles.partyTitle} numberOfLines={1}>{party.movieTitle}</Text>
+                    <View style={styles.partyStatusRow}>
+                      <View
+                        style={[
+                          styles.partyStatusDot,
+                          party.status === 'watching' ? styles.fmDotRed : styles.fmDotGreen,
+                        ]}
+                      />
+                      <Text style={styles.partyStatusText}>
+                        {party.status === 'watching' ? 'Watching now' : 'Waiting for members'}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.joinPartyBtn}
+                    onPress={() => handleJoinParty(party)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.joinPartyBtnText}>Join</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* ── Sign out ───────────────────────────────────────────────────── */}
         <View style={styles.signOutSection}>
           <TouchableOpacity
@@ -484,6 +579,28 @@ const styles = StyleSheet.create({
   fmDot: { width: 8, height: 8, borderRadius: 4 },
   fmDotRed: { backgroundColor: colors.red },
   fmDotGreen: { backgroundColor: '#2db52d' },
+
+  partyRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  partyPoster: { width: 40, height: 56, borderRadius: 8 },
+  partyPosterPlaceholder: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  partyInfo: { flex: 1 },
+  partyTitle: { fontSize: 14, color: '#fff', fontWeight: '700' },
+  partyStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  partyStatusDot: { width: 7, height: 7, borderRadius: 3.5 },
+  partyStatusText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
+  joinPartyBtn: {
+    backgroundColor: colors.gold,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 10,
+  },
+  joinPartyBtnText: { color: '#000', fontSize: 13, fontWeight: '800' },
 
   signOutSection: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 12 },
   signOutBtn: {

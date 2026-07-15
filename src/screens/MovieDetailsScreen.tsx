@@ -904,41 +904,6 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
             </View>
           )}
 
-          {/* ── Director / Creator ─────────────────────────────────────── */}
-          {(!!movie.Director || !!credits?.writers.length) && (
-            <View style={styles.crewRow}>
-              {!!movie.Director && (
-                <View style={styles.crewBlock}>
-                  <Text style={styles.crewLabel}>
-                    {movie.contentType === 'tv' ? 'Creator' : 'Director'}
-                  </Text>
-                  <Text style={styles.crewValue}>{movie.Director}</Text>
-                </View>
-              )}
-              {!!credits?.writers.length && (
-                <View style={styles.crewBlock}>
-                  <Text style={styles.crewLabel}>Writers</Text>
-                  <Text style={styles.crewValue}>{credits.writers.slice(0, 3).join(', ')}</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* ── Production Companies ───────────────────────────────────── */}
-          {movie.productionCompanies?.length > 0 && (
-            <View style={styles.companiesSection}>
-              <Text style={styles.sectionHeading}>Production</Text>
-              <View style={styles.companiesRow}>
-                {movie.productionCompanies.map((co) => (
-                  <View key={co} style={styles.companyChip}>
-                    <Ionicons name="business-outline" size={11} color={colors.gold} />
-                    <Text style={styles.companyName} numberOfLines={1}>{co}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
           {/* ── Your Rating ───────────────────────────────────────────────── */}
           {user && (
             <View style={styles.ratingSection}>
@@ -1448,39 +1413,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ── Crew ──
-  crewRow: {
-    paddingHorizontal: 18,
-    marginTop: 24,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 20,
-  },
-  crewBlock: {
-    flex: 1,
-    minWidth: 120,
-  },
-  crewLabel: {
-    color: colors.gold,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  crewValue: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-
-  // ── Companies ──
-  companiesSection: {
-    paddingHorizontal: 18,
-    marginTop: 24,
-  },
-
   // ── Rating section ──
   ratingSection: {
     paddingHorizontal: 18,
@@ -1509,29 +1441,6 @@ const styles = StyleSheet.create({
     color: '#555',
     fontWeight: '600',
   },
-  companiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  companyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.surfaceCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  companyName: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    maxWidth: 160,
-  },
-
   // ── Cast & Carousel rows ──
   castRow: {
     flexDirection: 'row',
