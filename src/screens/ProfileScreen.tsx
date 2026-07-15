@@ -22,12 +22,16 @@ import { useFollow } from '../context/FollowContext';
 import { useXP } from '../context/XPContext';
 import { colors } from '../theme/colors';
 import ProfileSignInPrompt from './ProfileSignInPrompt';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 const ProfileScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
   const [currentLanguage, setCurrentLanguage] = useState('en');
   const [darkMode] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [favoritesPublic, setFavoritesPublic] = useState(true);
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
 
   const { isEnabled, isUnlocked } = useFamilyMode();
   const { user, userProfile, logout, isLoading: authLoading } = useAuth();
@@ -39,6 +43,35 @@ const ProfileScreen = ({ navigation }: any) => {
     StatusBar.setBackgroundColor('#000000');
     loadLanguage();
   }, []);
+
+  // Load privacy settings from Firestore whenever auth state resolves
+  useEffect(() => {
+    if (!user?.uid) return;
+    const ref = doc(db, 'users', user.uid);
+    getDoc(ref).then((snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      setFavoritesPublic(data?.privacySettings?.favoritesPublic !== false);
+    }).catch(() => {});
+  }, [user?.uid]);
+
+  const handleToggleFavoritesPrivacy = async () => {
+    if (!user?.uid) return;
+    const newVal = !favoritesPublic;
+    setFavoritesPublic(newVal);
+    setSavingPrivacy(true);
+    try {
+      await setDoc(
+        doc(db, 'users', user.uid),
+        { privacySettings: { favoritesPublic: newVal } },
+        { merge: true },
+      );
+    } catch {
+      setFavoritesPublic(!newVal); // revert on error
+    } finally {
+      setSavingPrivacy(false);
+    }
+  };
 
   const loadLanguage = async () => {
     const lang = await getLanguage();
@@ -274,6 +307,33 @@ const ProfileScreen = ({ navigation }: any) => {
                 <Ionicons name="chevron-forward" size={18} color="#555" />
               </View>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── Privacy ────────────────────────────────────────────────────── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Privacy</Text>
+          <View style={styles.card}>
+            <View style={[styles.settingItem, styles.settingItemLast]}>
+              <View style={styles.settingLeft}>
+                <View style={styles.settingIconWrap}>
+                  <Ionicons name="heart" size={20} color={colors.gold} />
+                </View>
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingLabel}>Public Favorites</Text>
+                  <Text style={styles.settingValue}>
+                    {favoritesPublic ? 'Visible to everyone' : 'Only visible to you'}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={favoritesPublic}
+                onValueChange={handleToggleFavoritesPrivacy}
+                disabled={savingPrivacy}
+                trackColor={{ true: colors.gold, false: '#444' }}
+                thumbColor={favoritesPublic ? '#000' : '#888'}
+              />
+            </View>
           </View>
         </View>
 

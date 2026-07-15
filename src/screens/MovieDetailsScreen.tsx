@@ -71,7 +71,15 @@ import CastCard from '../components/CastCard';
 import MovieCard from '../components/MovieCard';
 import SectionTitle from '../components/SectionTitle';
 import TrailerEmbed from '../components/TrailerEmbed';
+import StarRating from '../components/StarRating';
 import { useXP } from '../context/XPContext';
+import {
+  syncFavoriteAdd,
+  syncFavoriteRemove,
+  addRating,
+  removeRating,
+  getUserRating,
+} from '../api/userContent';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -276,6 +284,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const [isFav, setIsFav] = useState(false);
   const [savedProgress, setSavedProgress] = useState<number>(0);
   const [overviewExpanded, setOverviewExpanded] = useState(false);
+  const [myRating, setMyRating] = useState(0);
 
   // Comments state
   const [comments, setComments] = useState<Comment[]>([]);
@@ -348,7 +357,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       const details = await getDetails(movieId, contentType);
       setMovie(details);
 
-      const [fav, pos, creditsRes, similarRes, recommendedRes, allFavs] =
+      const [fav, pos, creditsRes, similarRes, recommendedRes, allFavs, existingRating] =
         await Promise.all([
           isFavorite(movieId),
           getPlaybackPosition(movieId),
@@ -356,6 +365,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
           getSimilarTitles(movieId, contentType),
           getRecommendedTitles(movieId, contentType),
           getFavorites(),
+          user?.uid ? getUserRating(user.uid, contentType, movieId) : Promise.resolve(null),
         ]);
 
       setIsFav(fav);
@@ -363,6 +373,7 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
       setCredits(creditsRes);
       setSimilar(similarRes.slice(0, 12));
       setRecommended(recommendedRes.slice(0, 12));
+      setMyRating(existingRating ?? 0);
 
       const favIds = new Set(allFavs.map((f) => f.imdbID));
       const rowMovies = [...similarRes.slice(0, 12), ...recommendedRes.slice(0, 12)];
@@ -380,16 +391,37 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
     if (!movie) return;
     if (isFav) {
       await removeFromFavorites(movieId);
+      if (user?.uid) syncFavoriteRemove(user.uid, movieId).catch(() => {});
       setIsFav(false);
     } else {
-      await addToFavorites({
+      const favData = {
         imdbID: movieId,
         title: movie.Title,
         poster: movie.Poster,
         contentType,
         addedAt: Date.now(),
-      });
+      };
+      await addToFavorites(favData);
+      if (user?.uid) syncFavoriteAdd(user.uid, favData).catch(() => {});
       setIsFav(true);
+    }
+  };
+
+  const handleRate = async (stars: number) => {
+    if (!user || !movie) return;
+    if (stars === 0) {
+      await removeRating(user.uid, contentType, movieId);
+      setMyRating(0);
+    } else {
+      await addRating(user.uid, {
+        movieId,
+        contentType,
+        title: movie.Title,
+        poster: movie.Poster,
+        rating: stars,
+        ratedAt: Date.now(),
+      });
+      setMyRating(stars);
     }
   };
 
@@ -419,17 +451,20 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
   const handleRowFavoritePress = async (m: Movie) => {
     if (rowFavorites.has(m.imdbID)) {
       await removeFromFavorites(m.imdbID);
+      if (user?.uid) syncFavoriteRemove(user.uid, m.imdbID).catch(() => {});
       const next = new Set(rowFavorites);
       next.delete(m.imdbID);
       setRowFavorites(next);
     } else {
-      await addToFavorites({
+      const favData = {
         imdbID: m.imdbID,
         title: m.Title,
         poster: m.Poster,
         contentType: m.contentType,
         addedAt: Date.now(),
-      });
+      };
+      await addToFavorites(favData);
+      if (user?.uid) syncFavoriteAdd(user.uid, favData).catch(() => {});
       const next = new Set(rowFavorites);
       next.add(m.imdbID);
       setRowFavorites(next);
@@ -900,6 +935,31 @@ const MovieDetailsScreen = ({ route, navigation }: any) => {
                     <Text style={styles.companyName} numberOfLines={1}>{co}</Text>
                   </View>
                 ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Your Rating ───────────────────────────────────────────────── */}
+          {user && (
+            <View style={styles.ratingSection}>
+              <Text style={styles.sectionHeading}>Your Rating</Text>
+              <View style={styles.ratingCard}>
+                <StarRating
+                  rating={myRating}
+                  onRate={handleRate}
+                  size={32}
+                  showLabel
+                />
+                {myRating > 0 && (
+                  <TouchableOpacity
+                    onPress={() => handleRate(0)}
+                    style={styles.clearRatingBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close-circle-outline" size={15} color="#555" />
+                    <Text style={styles.clearRatingText}>Clear rating</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
@@ -1419,6 +1479,35 @@ const styles = StyleSheet.create({
   companiesSection: {
     paddingHorizontal: 18,
     marginTop: 24,
+  },
+
+  // ── Rating section ──
+  ratingSection: {
+    paddingHorizontal: 18,
+    marginTop: 24,
+  },
+  ratingCard: {
+    marginTop: 12,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.2)',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  clearRatingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  clearRatingText: {
+    fontSize: 12,
+    color: '#555',
+    fontWeight: '600',
   },
   companiesRow: {
     flexDirection: 'row',

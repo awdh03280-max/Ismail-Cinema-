@@ -24,6 +24,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import MovieOfTheDay from '../components/MovieOfTheDay';
 import MufarkirCard from '../components/MufarkirCard';
 import ContinueWatchingSection from '../components/ContinueWatchingSection';
+import CollectionsSection from '../components/CollectionsSection';
 import {
   addToFavorites,
   removeFromFavorites,
@@ -34,6 +35,7 @@ import {
 } from '../storage/storage';
 import { useFamilyMode } from '../context/FamilyModeContext';
 import { colors } from '../theme/colors';
+import type { Collection } from '../data/collections';
 
 interface HomeSection {
   key: string;
@@ -169,6 +171,10 @@ const HomeScreen = ({ navigation }: any) => {
     });
   }, [navigation]);
 
+  const handleCollectionPress = useCallback((collection: Collection) => {
+    navigation.navigate('Collection', { collectionId: collection.id });
+  }, [navigation]);
+
   /** Resume playback from the last saved timestamp. */
   const handleContinueWatchingResume = useCallback(async (movie: ContinueWatchingMovie) => {
     const savedPos = await getPlaybackPosition(movie.imdbID);
@@ -249,6 +255,8 @@ const HomeScreen = ({ navigation }: any) => {
           onPress={handleContinueWatchingPress}
           onContinue={handleContinueWatchingResume}
         />
+
+        <CollectionsSection onCollectionPress={handleCollectionPress} />
 
         {sections.map(section => (
           <View key={section.key}>

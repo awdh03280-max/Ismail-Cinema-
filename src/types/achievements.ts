@@ -56,6 +56,7 @@ export interface UserStats {
   seriesWatched: number;
   episodesWatched: number;
   commentsCount: number;
+  ratingsCount: number;
   animeWatched: number;
   animationWatched: number;
   loginStreak: number;

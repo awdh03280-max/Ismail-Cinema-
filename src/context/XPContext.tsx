@@ -49,11 +49,15 @@ interface FirestoreUserData {
   seriesWatched?: number;
   episodesWatched?: number;
   commentsCount?: number;
+  ratingsCount?: number;
   animeWatched?: number;
   animationWatched?: number;
   loginStreak?: number;
   lastLoginDate?: string;
   achievements?: Record<string, { unlockedAt?: number; xpAwarded?: number }>;
+  displayName?: string;
+  photoURL?: string | null;
+  lastActive?: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,6 +74,7 @@ const DEFAULT_STATS: UserStats = {
   seriesWatched: 0,
   episodesWatched: 0,
   commentsCount: 0,
+  ratingsCount: 0,
   animeWatched: 0,
   animationWatched: 0,
   loginStreak: 0,
@@ -141,11 +146,23 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           seriesWatched: data.seriesWatched ?? 0,
           episodesWatched: data.episodesWatched ?? 0,
           commentsCount: data.commentsCount ?? 0,
+          ratingsCount: data.ratingsCount ?? 0,
           animeWatched: data.animeWatched ?? 0,
           animationWatched: data.animationWatched ?? 0,
           loginStreak: data.loginStreak ?? 0,
           lastLoginDate: data.lastLoginDate ?? '',
         };
+
+        // Mirror displayName/photoURL from Auth into user doc for public profiles.
+        // Also stamp lastActive on first load so public profiles show when active.
+        if (userRef) {
+          const profilePatch: Record<string, any> = { lastActive: Date.now() };
+          if (!data.displayName && user?.displayName)
+            profilePatch.displayName = user.displayName;
+          if (data.photoURL === undefined && user?.photoURL !== undefined)
+            profilePatch.photoURL = user.photoURL ?? null;
+          updateDoc(userRef, profilePatch).catch(() => {});
+        }
 
         const achievementsMap = data.achievements ?? {};
         const ids = new Set<AchievementId>(
@@ -418,6 +435,7 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           seriesWatched: freshData.seriesWatched ?? 0,
           episodesWatched: freshData.episodesWatched ?? 0,
           commentsCount: freshData.commentsCount ?? 0,
+          ratingsCount: freshData.ratingsCount ?? 0,
           animeWatched: freshData.animeWatched ?? 0,
           animationWatched: freshData.animationWatched ?? 0,
           loginStreak: freshData.loginStreak ?? 0,
@@ -537,7 +555,14 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       const freshLevel = xpToLevel(freshXp);
       setXp(freshXp);
       setLevel(freshLevel);
-      setStats(s => ({ ...s, xp: freshXp, level: freshLevel }));
+      setStats(s => ({
+        ...s,
+        xp: freshXp,
+        level: freshLevel,
+        ratingsCount: data.ratingsCount ?? s.ratingsCount,
+      }));
+      // Keep lastActive fresh so public profiles show accurate activity time
+      updateDoc(userRef, { lastActive: Date.now() }).catch(() => {});
     } catch (err) {
       console.error('[XP] syncStats error:', err);
     }

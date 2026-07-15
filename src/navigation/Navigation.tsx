@@ -25,6 +25,7 @@ import WatchPartyScreen from '../screens/WatchPartyScreen';
 import MovieListScreen from '../screens/MovieListScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
 import ActorProfileScreen from '../screens/ActorProfileScreen';
+import CollectionScreen from '../screens/CollectionScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -109,6 +110,7 @@ const socialScreens = (
     <Stack.Screen name="NotificationsScreen" component={GatedNotificationsScreen} options={{ title: 'Activity' }} />
     <Stack.Screen name="WatchParty" component={GatedWatchPartyScreen} options={{ title: 'Watch Party', headerShown: false }} />
     <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: 'Movies' }} />
+    <Stack.Screen name="Collection" component={CollectionScreen as AnyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
@@ -206,14 +208,6 @@ const BottomTabNavigator = () => {
         options={{
           title: t('search'),
           tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="ContinueWatching"
-        component={ContinueWatchingStack}
-        options={{
-          title: t('continue_watching'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="play-circle" size={size} color={color} />,
         }}
       />
       <Tab.Screen
