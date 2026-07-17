@@ -47,7 +47,7 @@ interface ActiveParty {
   createdAt: number;
 }
 
-/** Live participant count for one party row — subscribes to its members subcollection. */
+/** Live participant count for one party row */
 const usePartyMemberCount = (partyId: string): number => {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -61,12 +61,13 @@ const usePartyMemberCount = (partyId: string): number => {
   return count;
 };
 
-/** One row in the "All Watch Parties" list — poster, title, host, participant count, Join. */
+/** One row in the "All Watch Parties" list */
 const WatchPartyRow: React.FC<{
   party: ActiveParty;
   isLast: boolean;
   onJoin: () => void;
 }> = ({ party, isLast, onJoin }) => {
+  const { t } = useTranslation();
   const memberCount = usePartyMemberCount(party.id);
   return (
     <View style={[styles.partyRow, isLast && styles.settingItemLast]}>
@@ -93,8 +94,8 @@ const WatchPartyRow: React.FC<{
             ]}
           />
           <Text style={styles.partyStatusText}>
-            {party.status === 'watching' ? 'Watching now' : 'Waiting for members'}
-            {' · '}{memberCount} participant{memberCount !== 1 ? 's' : ''}
+            {party.status === 'watching' ? t('watching_now') : t('waiting_for_members')}
+            {' · '}{t('participant_count', { count: memberCount })}
           </Text>
         </View>
       </View>
@@ -103,7 +104,7 @@ const WatchPartyRow: React.FC<{
         onPress={onJoin}
         activeOpacity={0.8}
       >
-        <Text style={styles.joinPartyBtnText}>Join</Text>
+        <Text style={styles.joinPartyBtnText}>{t('join')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -111,7 +112,7 @@ const WatchPartyRow: React.FC<{
 
 const ProfileScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
-  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [currentLanguage, setCurrentLanguage] = useState('ar');
   const [darkMode] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [favoritesPublic, setFavoritesPublic] = useState(true);
@@ -129,7 +130,6 @@ const ProfileScreen = ({ navigation }: any) => {
     loadLanguage();
   }, []);
 
-  // Load privacy settings from Firestore whenever auth state resolves
   useEffect(() => {
     if (!user?.uid) return;
     const ref = doc(db, 'users', user.uid);
@@ -140,7 +140,6 @@ const ProfileScreen = ({ navigation }: any) => {
     }).catch(() => {});
   }, [user?.uid]);
 
-  // Live list of joinable Watch Parties (waiting for members or already playing).
   useEffect(() => {
     if (!user?.uid) return;
     const q = query(
@@ -178,7 +177,7 @@ const ProfileScreen = ({ navigation }: any) => {
         { merge: true },
       );
     } catch {
-      setFavoritesPublic(!newVal); // revert on error
+      setFavoritesPublic(!newVal);
     } finally {
       setSavingPrivacy(false);
     }
@@ -208,7 +207,6 @@ const ProfileScreen = ({ navigation }: any) => {
             try {
               setLoggingOut(true);
               await logout();
-              // RootNavigator will switch to AuthStack automatically via onAuthStateChanged
             } catch {
               setLoggingOut(false);
               Alert.alert(t('error'), t('sign_out_error'));
@@ -219,7 +217,6 @@ const ProfileScreen = ({ navigation }: any) => {
     );
   };
 
-  // Family Mode status
   const fmStatusLabel = isEnabled
     ? isUnlocked ? t('fm_unlocked_badge') : t('fm_locked_badge')
     : t('fm_status_off');
@@ -228,20 +225,13 @@ const ProfileScreen = ({ navigation }: any) => {
     ? isUnlocked ? 'shield-checkmark' : 'shield'
     : 'shield-outline') as React.ComponentProps<typeof Ionicons>['name'];
 
-  // User display info — prefer Firestore profile, fall back to Firebase Auth
   const displayName =
     userProfile?.displayName || user?.displayName || 'Cinema User';
   const displayEmail =
     userProfile?.email || user?.email || '';
-
-  // Avatar letter and photo
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || 'C';
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
 
-  // Not signed in — show sign-in options instead of profile data.
-  // Browsing (Home/Search/Details/Player) never requires auth; only this
-  // Profile tab gates on it, per product requirement. No favorites, social,
-  // or settings data is fetched or rendered until `user` exists.
   if (!authLoading && !user) {
     return <ProfileSignInPrompt navigation={navigation} />;
   }
@@ -259,7 +249,7 @@ const ProfileScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Identity header ────────────────────────────────────────────── */}
+        {/* ── Identity header ──────────────────────────────────────────────── */}
         <View style={styles.identityCard}>
           <View style={styles.avatarRing}>
             {photoURL ? (
@@ -281,11 +271,13 @@ const ProfileScreen = ({ navigation }: any) => {
 
           <View style={styles.levelPill}>
             <Ionicons name="star" size={12} color="#000" />
-            <Text style={styles.levelPillText}>Level {level} · {xp} XP</Text>
+            <Text style={styles.levelPillText}>
+              {t('level_xp', { level, xp })}
+            </Text>
           </View>
         </View>
 
-        {/* ── Quick stats: Favorites / Followers / Following ──────────────── */}
+        {/* ── Quick stats: Favorites / Followers / Following ───────────────── */}
         <View style={styles.statsRow}>
           <TouchableOpacity
             style={styles.statCard}
@@ -304,7 +296,7 @@ const ProfileScreen = ({ navigation }: any) => {
             activeOpacity={0.8}
           >
             <Text style={styles.statNumber}>{followersCount}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
+            <Text style={styles.statLabel}>{t('followers')}</Text>
           </TouchableOpacity>
 
           <View style={styles.statDivider} />
@@ -315,7 +307,7 @@ const ProfileScreen = ({ navigation }: any) => {
             activeOpacity={0.8}
           >
             <Text style={styles.statNumber}>{followingCount}</Text>
-            <Text style={styles.statLabel}>Following</Text>
+            <Text style={styles.statLabel}>{t('following')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -330,11 +322,13 @@ const ProfileScreen = ({ navigation }: any) => {
               <View style={[styles.xpBarFill, { width: `${Math.round(xpProgress * 100)}%` }]} />
             </View>
             <View style={styles.xpMetaRow}>
-              <Text style={styles.xpNextText}>{xpToNextLevel} XP to next level</Text>
+              <Text style={styles.xpNextText}>
+                {t('xp_to_next_level', { xp: xpToNextLevel })}
+              </Text>
               <View style={styles.achievementsRow}>
                 <Ionicons name="trophy" size={15} color={colors.gold} />
                 <Text style={styles.achievementsText}>
-                  {unlockedIds.size}/{allAchievements.length} Achievements
+                  {t('achievements_unlocked', { count: unlockedIds.size, total: allAchievements.length })}
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color="#555" />
               </View>
@@ -342,7 +336,7 @@ const ProfileScreen = ({ navigation }: any) => {
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* ── Settings ───────────────────────────────────────────────────── */}
+        {/* ── Settings ─────────────────────────────────────────────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings')}</Text>
 
@@ -362,19 +356,19 @@ const ProfileScreen = ({ navigation }: any) => {
               </View>
               <View style={styles.languageButtons}>
                 <TouchableOpacity
-                  style={[styles.langButton, currentLanguage === 'en' && styles.langButtonActive]}
-                  onPress={() => handleLanguageChange('en')}
-                >
-                  <Text style={[styles.langButtonText, currentLanguage === 'en' && styles.langButtonTextActive]}>
-                    EN
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                   style={[styles.langButton, currentLanguage === 'ar' && styles.langButtonActive]}
                   onPress={() => handleLanguageChange('ar')}
                 >
                   <Text style={[styles.langButtonText, currentLanguage === 'ar' && styles.langButtonTextActive]}>
                     AR
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.langButton, currentLanguage === 'en' && styles.langButtonActive]}
+                  onPress={() => handleLanguageChange('en')}
+                >
+                  <Text style={[styles.langButtonText, currentLanguage === 'en' && styles.langButtonTextActive]}>
+                    EN
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -388,7 +382,7 @@ const ProfileScreen = ({ navigation }: any) => {
                 </View>
                 <View style={styles.settingTextContainer}>
                   <Text style={styles.settingLabel}>{t('dark_mode')}</Text>
-                  <Text style={styles.settingValue}>Always On</Text>
+                  <Text style={styles.settingValue}>{t('always_on')}</Text>
                 </View>
               </View>
               <Switch value={darkMode} disabled trackColor={{ true: colors.red, false: '#444' }} />
@@ -421,9 +415,9 @@ const ProfileScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* ── Privacy ────────────────────────────────────────────────────── */}
+        {/* ── Privacy ──────────────────────────────────────────────────────── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Privacy</Text>
+          <Text style={styles.sectionTitle}>{t('privacy')}</Text>
           <View style={styles.card}>
             <View style={[styles.settingItem, styles.settingItemLast]}>
               <View style={styles.settingLeft}>
@@ -431,9 +425,9 @@ const ProfileScreen = ({ navigation }: any) => {
                   <Ionicons name="heart" size={20} color={colors.gold} />
                 </View>
                 <View style={styles.settingTextContainer}>
-                  <Text style={styles.settingLabel}>Public Favorites</Text>
+                  <Text style={styles.settingLabel}>{t('public_favorites')}</Text>
                   <Text style={styles.settingValue}>
-                    {favoritesPublic ? 'Visible to everyone' : 'Only visible to you'}
+                    {favoritesPublic ? t('visible_to_everyone') : t('only_visible_to_you')}
                   </Text>
                 </View>
               </View>
@@ -448,10 +442,10 @@ const ProfileScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* ── All Watch Parties ────────────────────────────────────────────── */}
+        {/* ── All Watch Parties ─────────────────────────────────────────────── */}
         {activeParties.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>All Watch Parties</Text>
+            <Text style={styles.sectionTitle}>{t('all_watch_parties')}</Text>
             <View style={styles.card}>
               {activeParties.map((party, idx) => (
                 <WatchPartyRow
@@ -465,7 +459,7 @@ const ProfileScreen = ({ navigation }: any) => {
           </View>
         )}
 
-        {/* ── Sign out ───────────────────────────────────────────────────── */}
+        {/* ── Sign out ──────────────────────────────────────────────────────── */}
         <View style={styles.signOutSection}>
           <TouchableOpacity
             style={[styles.signOutBtn, loggingOut && styles.signOutBtnDisabled]}

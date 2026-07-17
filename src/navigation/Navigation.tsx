@@ -34,15 +34,9 @@ import AuthGate from '../components/AuthGate';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
-// ComponentType<any> because these screens use a loose `navigation: any` prop.
-// Full param-list types can be added per-screen in a future refactor.
 type AnyScreen = React.ComponentType<any>;
 
 // ── Auth-gated screen wrappers ─────────────────────────────────────────────
-// Browsing (Home/Search/Details/Player) never requires sign-in. Only these
-// user-specific features are protected: Favorites, Watch Party, Friends
-// (Followers/Following), Notifications. Wrapping here keeps each screen's
-// own code untouched.
 const GatedFavoritesScreen: AnyScreen = ({ navigation, ...rest }: any) => (
   <AuthGate navigation={navigation} message="Sign in to view and manage your favorites.">
     <FavoritesScreen navigation={navigation} {...rest} />
@@ -72,23 +66,28 @@ const GatedNotificationsScreen: AnyScreen = ({ navigation, ...rest }: any) => (
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// ── Shared header options ─────────────────────────────────────────────────────
+// ── Shared header options ──────────────────────────────────────────────────
 const sharedHeader = {
   headerStyle: { backgroundColor: colors.black },
   headerTintColor: '#fff',
   headerTitleStyle: { fontWeight: 'bold' as const },
 };
 
-// ── Player screen (shared across stacks) ─────────────────────────────────────
+// ── Player screen (fullscreen modal, landscape handled inside PlayerScreen) ──
 const playerScreen = (
   <Stack.Screen
     name="Player"
     component={PlayerScreen}
-    options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal' }}
+    options={{
+      headerShown: false,
+      animation: 'fade',
+      presentation: 'fullScreenModal',
+      orientation: 'landscape',
+    }}
   />
 );
 
-// ── Actor Profile screen (shared across stacks) ───────────────────────────────
+// ── Actor Profile screen ──────────────────────────────────────────────────
 const actorProfileScreen = (
   <Stack.Screen
     name="ActorProfile"
@@ -97,85 +96,85 @@ const actorProfileScreen = (
   />
 );
 
-// ── Social screens (shared across stacks) ────────────────────────────────────
-// Followers/Following/Notifications/WatchParty are auth-gated — browsing
-// stays open, but these user-specific features require sign-in.
-// Login/SignUp/ForgotPassword are included here too so the sign-in flow
-// (triggered from the Profile tab or from an AuthGate prompt) is reachable
-// from every stack, not just Profile.
-const socialScreens = (
-  <>
-    <Stack.Screen name="PublicProfile" component={PublicProfileScreen as AnyScreen} options={{ title: 'Profile' }} />
-    <Stack.Screen name="FollowersScreen" component={GatedFollowersScreen} options={{ title: 'Followers' }} />
-    <Stack.Screen name="FollowingScreen" component={GatedFollowingScreen} options={{ title: 'Following' }} />
-    <Stack.Screen name="NotificationsScreen" component={GatedNotificationsScreen} options={{ title: 'Activity' }} />
-    <Stack.Screen name="WatchParty" component={GatedWatchPartyScreen} options={{ title: 'Watch Party', headerShown: false }} />
-    <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: 'Movies' }} />
-    <Stack.Screen name="Collection" component={CollectionScreen as AnyScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="SeriesCollection" component={SeriesCollectionScreen as AnyScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
-    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
-  </>
-);
+// ── Social / shared screens ───────────────────────────────────────────────
+const SocialScreens = () => {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Stack.Screen name="PublicProfile" component={PublicProfileScreen as AnyScreen} options={{ title: t('profile') }} />
+      <Stack.Screen name="FollowersScreen" component={GatedFollowersScreen} options={{ title: t('nav_followers') }} />
+      <Stack.Screen name="FollowingScreen" component={GatedFollowingScreen} options={{ title: t('nav_following') }} />
+      <Stack.Screen name="NotificationsScreen" component={GatedNotificationsScreen} options={{ title: t('nav_activity') }} />
+      <Stack.Screen name="WatchParty" component={GatedWatchPartyScreen} options={{ title: t('nav_watch_party'), headerShown: false }} />
+      <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: t('nav_movies') }} />
+      <Stack.Screen name="Collection" component={CollectionScreen as AnyScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="SeriesCollection" component={SeriesCollectionScreen as AnyScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
+    </>
+  );
+};
 
-// ── Main stacks ───────────────────────────────────────────────────────────────
-const HomeStack = () => (
-  <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
-    <Stack.Screen name="HomeScreen" component={HomeScreen} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ headerShown: true }} />
-    {playerScreen}
-    {actorProfileScreen}
-    {socialScreens}
-  </Stack.Navigator>
-);
+// ── Main stacks ────────────────────────────────────────────────────────────
+const HomeStack = () => {
+  const { t } = useTranslation();
+  return (
+    <Stack.Navigator screenOptions={{ ...sharedHeader, headerShown: false }}>
+      <Stack.Screen name="HomeScreen" component={HomeScreen} />
+      <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details'), headerShown: true }} />
+      {playerScreen}
+      {actorProfileScreen}
+      <SocialScreens />
+    </Stack.Navigator>
+  );
+};
 
-const SearchStack = () => (
-  <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen name="SearchScreen" component={SearchScreen} options={{ title: 'Search' }} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
-    {playerScreen}
-    {actorProfileScreen}
-    {socialScreens}
-  </Stack.Navigator>
-);
+const SearchStack = () => {
+  const { t } = useTranslation();
+  return (
+    <Stack.Navigator screenOptions={sharedHeader}>
+      <Stack.Screen name="SearchScreen" component={SearchScreen} options={{ title: t('search') }} />
+      <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details') }} />
+      {playerScreen}
+      {actorProfileScreen}
+      <SocialScreens />
+    </Stack.Navigator>
+  );
+};
 
-const ContinueWatchingStack = () => (
-  <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen name="ContinueWatchingScreen" component={ContinueWatchingScreen} options={{ title: 'Continue Watching' }} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
-    {playerScreen}
-    {actorProfileScreen}
-    {socialScreens}
-  </Stack.Navigator>
-);
+const DownloadsStack = () => {
+  const { t } = useTranslation();
+  return (
+    <Stack.Navigator screenOptions={sharedHeader}>
+      <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} options={{ title: t('downloads') }} />
+      <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details') }} />
+      {playerScreen}
+      {actorProfileScreen}
+      <SocialScreens />
+    </Stack.Navigator>
+  );
+};
 
-const DownloadsStack = () => (
-  <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} options={{ title: 'Downloads' }} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
-    {playerScreen}
-    {actorProfileScreen}
-    {socialScreens}
-  </Stack.Navigator>
-);
+const ProfileStack = () => {
+  const { t } = useTranslation();
+  return (
+    <Stack.Navigator screenOptions={sharedHeader}>
+      <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: t('profile') }} />
+      <Stack.Screen name="FavoritesScreen" component={GatedFavoritesScreen} options={{ title: t('nav_my_favorites') }} />
+      <Stack.Screen name="AchievementsScreen" component={AchievementsScreen} options={{ title: t('nav_achievements') }} />
+      <Stack.Screen name="CinemaQuizScreen" component={CinemaQuizScreen as AnyScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details') }} />
+      {playerScreen}
+      {actorProfileScreen}
+      <SocialScreens />
+      <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: t('nav_family_mode') }} />
+      <Stack.Screen name="FamilyModePin" component={FamilyModePinScreen} options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+    </Stack.Navigator>
+  );
+};
 
-const ProfileStack = () => (
-  <Stack.Navigator screenOptions={sharedHeader}>
-    <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
-    <Stack.Screen name="FavoritesScreen" component={GatedFavoritesScreen} options={{ title: 'My Favorites' }} />
-    <Stack.Screen name="AchievementsScreen" component={AchievementsScreen} options={{ title: 'Achievements' }} />
-    <Stack.Screen name="CinemaQuizScreen" component={CinemaQuizScreen as AnyScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: 'Details' }} />
-    {playerScreen}
-    {actorProfileScreen}
-    {socialScreens}
-    <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: 'Family Mode' }} />
-    <Stack.Screen name="FamilyModePin" component={FamilyModePinScreen} options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-  </Stack.Navigator>
-);
-
-// ── Bottom tab navigator ──────────────────────────────────────────────────────
+// ── Bottom tab navigator ───────────────────────────────────────────────────
 const BottomTabNavigator = () => {
   const { t } = useTranslation();
 
@@ -216,7 +215,7 @@ const BottomTabNavigator = () => {
         name="Downloads"
         component={DownloadsStack}
         options={{
-          title: 'Downloads',
+          title: t('downloads'),
           tabBarIcon: ({ color, size }) => <Ionicons name="download" size={size} color={color} />,
         }}
       />
@@ -232,27 +231,13 @@ const BottomTabNavigator = () => {
   );
 };
 
-// ── Root navigator ────────────────────────────────────────────────────────────
-/**
- * Navigation flow:
- *  - Splash shows until its own animation completes.
- *  - After splash: always go straight to MainApp (Home) — browsing never
- *    requires sign-in. Auth only happens from the Profile tab (see
- *    ProfileSignInPrompt) or from an AuthGate prompt on a protected screen
- *    (Favorites, Watch Party, Followers/Following, Notifications).
- *  - We still wait for Firebase's initial auth check (isLoading) before
- *    leaving the splash so Profile/AuthGate don't flash a "signed out" state
- *    for a returning, already-authenticated user.
- */
+// ── Root navigator ─────────────────────────────────────────────────────────
 const RootNavigator = () => {
   const { isLoading } = useAuth();
   const [splashComplete, setSplashComplete] = useState(false);
 
-  // Stable callback — prevents SplashScreen's useEffect from resetting the
-  // ~2.53 s timer every time isLoading changes cause a parent re-render.
   const handleSplashComplete = useCallback(() => setSplashComplete(true), []);
 
-  // Stay on splash while the animation is running OR while Firebase is resolving auth
   const showSplash = !splashComplete || isLoading;
 
   return (
@@ -268,7 +253,7 @@ const RootNavigator = () => {
   );
 };
 
-// ── Navigation root ───────────────────────────────────────────────────────────
+// ── Navigation root ────────────────────────────────────────────────────────
 const Navigation = () => (
   <NavigationContainer>
     <RootNavigator />

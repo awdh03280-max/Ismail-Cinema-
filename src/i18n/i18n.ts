@@ -12,7 +12,8 @@ i18next
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en',
+    lng: 'ar',           // Arabic is the default language
+    fallbackLng: 'ar',
     interpolation: {
       escapeValue: false,
     },

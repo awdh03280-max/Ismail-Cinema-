@@ -362,9 +362,9 @@ export const setLanguage = async (language: 'en' | 'ar'): Promise<void> => {
 export const getLanguage = async (): Promise<'en' | 'ar'> => {
   try {
     const language = await AsyncStorage.getItem(LANGUAGE_KEY);
-    return (language as 'en' | 'ar') || 'en';
+    return (language as 'en' | 'ar') || 'ar'; // Arabic is the default
   } catch (error) {
     console.error('Error getting language:', error);
-    return 'en';
+    return 'ar';
   }
 };

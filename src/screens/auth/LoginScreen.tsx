@@ -13,15 +13,15 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth, getAuthErrorMessage } from '../../context/AuthContext';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import AuthInput from '../../components/auth/AuthInput';
 import SocialButton from '../../components/auth/SocialButton';
 import { isValidEmail } from '../../utils/validation';
 
-// ── Component ──────────────────────────────────────────────────────────────
-
 const LoginScreen = ({ navigation }: any) => {
+  const { t } = useTranslation();
   const { signIn, googleRedirectError, clearGoogleRedirectError } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -30,7 +30,6 @@ const LoginScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
 
-  // Cross-platform Google Sign-In (web=popup, native=expo-auth-session)
   const { trigger: googleSignIn, loading: googleLoading } = useGoogleAuth({
     onError: (err: any) => {
       const code: string = err?.code ?? '';
@@ -40,13 +39,11 @@ const LoginScreen = ({ navigation }: any) => {
       } else if (err?.message) {
         setApiError(err.message);
       } else {
-        setApiError('Google Sign-In failed. Please try again.');
+        setApiError(t('auth_error_google_failed'));
       }
     },
   });
 
-  // Surface an error from a Google sign-in that completed via full-page
-  // redirect (popup fallback) after this screen remounted.
   useEffect(() => {
     if (!googleRedirectError) return;
     const code: string = (googleRedirectError as any)?.code ?? '';
@@ -54,18 +51,16 @@ const LoginScreen = ({ navigation }: any) => {
       clearGoogleRedirectError();
       return;
     }
-    setApiError(
-      code ? getAuthErrorMessage(code) : 'Google Sign-In failed. Please try again.'
-    );
+    setApiError(code ? getAuthErrorMessage(code) : t('auth_error_google_failed'));
     clearGoogleRedirectError();
   }, [googleRedirectError, clearGoogleRedirectError]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!email.trim()) e.email = 'Email is required.';
-    else if (!isValidEmail(email)) e.email = 'Enter a valid email address.';
-    if (!password) e.password = 'Password is required.';
-    else if (password.length < 6) e.password = 'Password must be at least 6 characters.';
+    if (!email.trim()) e.email = t('auth_error_email_required');
+    else if (!isValidEmail(email)) e.email = t('auth_error_email_invalid');
+    if (!password) e.password = t('auth_error_password_required');
+    else if (password.length < 6) e.password = t('auth_error_password_short');
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -76,7 +71,6 @@ const LoginScreen = ({ navigation }: any) => {
     try {
       setLoading(true);
       await signIn(email.trim().toLowerCase(), password);
-      // Navigation handled declaratively by RootNavigator auth state
     } catch (err: any) {
       setApiError(getAuthErrorMessage(err.code ?? ''));
     } finally {
@@ -98,8 +92,6 @@ const LoginScreen = ({ navigation }: any) => {
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-
-      {/* Decorative film-strip accent */}
       <View style={styles.filmAccentTop} />
       <View style={styles.filmAccentBottom} />
 
@@ -123,10 +115,9 @@ const LoginScreen = ({ navigation }: any) => {
 
           {/* Card */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Welcome back</Text>
-            <Text style={styles.cardSubtitle}>Sign in to your account</Text>
+            <Text style={styles.cardTitle}>{t('auth_login_title')}</Text>
+            <Text style={styles.cardSubtitle}>{t('auth_login_subtitle')}</Text>
 
-            {/* API-level error */}
             {!!apiError && (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle" size={16} color="#ff4d4d" />
@@ -135,10 +126,10 @@ const LoginScreen = ({ navigation }: any) => {
             )}
 
             <AuthInput
-              label="Email"
+              label={t('auth_email')}
               icon="mail-outline"
               value={email}
-              onChangeText={t => { setEmail(t); setErrors(e => ({ ...e, email: '' })); }}
+              onChangeText={(v: string) => { setEmail(v); setErrors(e => ({ ...e, email: '' })); }}
               keyboardType="email-address"
               autoCapitalize="none"
               placeholder="your@email.com"
@@ -147,10 +138,10 @@ const LoginScreen = ({ navigation }: any) => {
             />
 
             <AuthInput
-              label="Password"
+              label={t('auth_password')}
               icon="lock-closed-outline"
               value={password}
-              onChangeText={t => { setPassword(t); setErrors(e => ({ ...e, password: '' })); }}
+              onChangeText={(v: string) => { setPassword(v); setErrors(e => ({ ...e, password: '' })); }}
               isPassword
               placeholder="••••••••"
               error={errors.password}
@@ -158,16 +149,14 @@ const LoginScreen = ({ navigation }: any) => {
               onSubmitEditing={handleLogin}
             />
 
-            {/* Forgot password */}
             <TouchableOpacity
               onPress={() => navigation.navigate('ForgotPassword')}
               style={styles.forgotWrap}
               activeOpacity={0.7}
             >
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text style={styles.forgotText}>{t('auth_forgot_password')}</Text>
             </TouchableOpacity>
 
-            {/* Sign-in button */}
             <TouchableOpacity
               style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
               onPress={handleLogin}
@@ -177,34 +166,30 @@ const LoginScreen = ({ navigation }: any) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.primaryBtnText}>Sign In</Text>
+                <Text style={styles.primaryBtnText}>{t('auth_sign_in')}</Text>
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
+              <Text style={styles.dividerText}>{t('auth_or')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Google */}
             <SocialButton
-              label="Continue with Google"
+              label={t('auth_google')}
               onPress={handleGoogle}
               loading={googleLoading}
               disabled={loading}
-              icon={
-                <Text style={styles.googleG}>G</Text>
-              }
+              icon={<Text style={styles.googleG}>G</Text>}
             />
           </View>
 
           {/* Sign up */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={styles.footerText}>{t('auth_no_account')} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('SignUp')} activeOpacity={0.7}>
-              <Text style={styles.footerLink}>Sign Up</Text>
+              <Text style={styles.footerLink}>{t('auth_sign_up')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -217,33 +202,17 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, backgroundColor: '#0a0e27' },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
-
-  // Film accent bars
-  filmAccentTop: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 4,
-    backgroundColor: '#e50914',
-  },
-  filmAccentBottom: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 4,
-    backgroundColor: '#e50914',
-  },
-
-  // Brand
+  filmAccentTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 4, backgroundColor: '#e50914' },
+  filmAccentBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, backgroundColor: '#e50914' },
   brand: { alignItems: 'center', marginBottom: 32 },
   brandLogo: { width: 120, height: 120 },
-
-  // Card
   card: {
     backgroundColor: 'rgba(26,26,46,0.95)',
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#2a2a3e',
+    borderRadius: 20, padding: 24,
+    borderWidth: 1, borderColor: '#2a2a3e',
   },
   cardTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
   cardSubtitle: { fontSize: 14, color: '#888', marginBottom: 24 },
-
-  // Error banner
   errorBanner: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,77,77,0.12)',
@@ -251,28 +220,18 @@ const styles = StyleSheet.create({
     padding: 12, marginBottom: 16, gap: 8,
   },
   errorBannerText: { color: '#ff4d4d', fontSize: 13, flex: 1 },
-
-  // Forgot
   forgotWrap: { alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 },
   forgotText: { color: '#e50914', fontSize: 13, fontWeight: '600' },
-
-  // Primary button
   primaryBtn: {
     backgroundColor: '#e50914', borderRadius: 10,
     height: 52, justifyContent: 'center', alignItems: 'center',
   },
   primaryBtnDisabled: { opacity: 0.6 },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
-
-  // Divider
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#2a2a3e' },
   dividerText: { color: '#555', marginHorizontal: 12, fontSize: 13 },
-
-  // Google G
   googleG: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
-
-  // Footer
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   footerText: { color: '#888', fontSize: 14 },
   footerLink: { color: '#e50914', fontSize: 14, fontWeight: '700' },
