@@ -23,39 +23,41 @@ export const QUALITIES: Quality[] = ['auto', '1080p', '720p', '480p', '360p'];
 
 export const SERVERS: StreamingServer[] = [
   {
-    id: 'vidsrc_to',
+    // vidsrc.xyz — maintained successor to vidsrc.to (active as of 2025-2026)
+    id: 'vidsrc_xyz',
     name: 'VidSrc',
-    getUrl: (id, _quality, subtitle, contentType = 'movie', season, episode) => {
+    getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
       const type = contentType === 'tv' ? 'tv' : 'movie';
-      let base = `https://vidsrc.to/embed/${type}/${id}`;
+      let url = `https://vidsrc.xyz/embed/${type}/${id}`;
       if (contentType === 'tv' && season != null && episode != null) {
-        base += `/${season}/${episode}`;
+        url += `/${season}/${episode}`;
       }
-      return subtitle && subtitle !== 'off' ? `${base}?subtitle=${subtitle}` : base;
+      return url;
     },
     supportsQuality: false,
-    supportsSubtitles: true,
+    supportsSubtitles: false,
   },
   {
-    id: 'vidsrc_me',
-    name: 'VidSrc 2',
-    getUrl: (id, _quality, subtitle, contentType = 'movie', season, episode) => {
+    // embed.su — formerly vidsrc.pro (rebranded, active as of 2025-2026)
+    id: 'embed_su',
+    name: 'EmbedSu',
+    getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
       const type = contentType === 'tv' ? 'tv' : 'movie';
-      let base = `https://vidsrc.me/embed/${type}?tmdb=${id}`;
+      let url = `https://embed.su/embed/${type}/${id}`;
       if (contentType === 'tv' && season != null && episode != null) {
-        base += `&season=${season}&episode=${episode}`;
+        url += `/${season}/${episode}`;
       }
-      return subtitle && subtitle !== 'off' ? `${base}&ds_lang=${subtitle}` : base;
+      return url;
     },
     supportsQuality: false,
-    supportsSubtitles: true,
+    supportsSubtitles: false,
   },
   {
     id: 'autoembed',
     name: 'AutoEmbed',
     getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
       const type = contentType === 'tv' ? 'tv' : 'movie';
-      let url = `https://player.autoembed.cc/embed/${type}/${id}`;
+      let url = `https://autoembed.cc/embed/${type}/${id}`;
       if (contentType === 'tv' && season != null && episode != null) {
         url += `/${season}/${episode}`;
       }

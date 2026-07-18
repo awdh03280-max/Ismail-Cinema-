@@ -75,6 +75,11 @@ const sharedHeader = {
 };
 
 // ── Player screen (fullscreen modal, landscape handled inside PlayerScreen) ──
+// NOTE: orientation is NOT set here. PlayerScreen.tsx handles landscape locking
+// via expo-screen-orientation.lockAsync on mount / restores on unmount.
+// Having orientation:'landscape' in the Stack.Screen options AND in the screen
+// itself causes a native-side orientation state conflict on Android that crashes
+// the app when the stack containing this screen is mounted (the 4th tab, Profile).
 const playerScreen = (
   <Stack.Screen
     name="Player"
@@ -83,7 +88,6 @@ const playerScreen = (
       headerShown: false,
       animation: 'fade',
       presentation: 'fullScreenModal',
-      orientation: 'landscape',
     }}
   />
 );

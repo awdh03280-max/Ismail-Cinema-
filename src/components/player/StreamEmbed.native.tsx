@@ -31,9 +31,11 @@ const StreamEmbed: React.FC<Props> = ({ uri, onLoadStart, onLoadEnd, onError, st
     onHttpError={({ nativeEvent }: { nativeEvent: any }) => {
       if (nativeEvent.statusCode >= 400 && onError) onError();
     }}
-    userAgent="Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 Chrome/118.0.0.0 Mobile Safari/537.36"
+    userAgent="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
     originWhitelist={['*']}
     mixedContentMode="always"
+    thirdPartyCookiesEnabled
+    sharedCookiesEnabled
   />
 );
 

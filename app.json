@@ -19,7 +19,7 @@
         "backgroundColor": "#000000"
       },
       "package": "com.ismailcinema.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -43,7 +43,8 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "plugins": [
-      "expo-av"
+      "expo-av",
+      "expo-screen-orientation"
     ],
     "extra": {
       "eas": {
