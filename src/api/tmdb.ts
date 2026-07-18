@@ -7,6 +7,11 @@ const BACKDROP_URL = 'https://image.tmdb.org/t/p/w1280';
 
 const api = axios.create({
   baseURL: BASE_URL,
+  params: {
+    // Return Arabic titles, overviews, and genres for all requests.
+    // Individual call params are merged on top, so this is always applied.
+    language: 'ar',
+  },
 });
 
 /** Content categories exposed as browsable navigation sections. */
