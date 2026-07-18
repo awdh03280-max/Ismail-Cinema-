@@ -10,6 +10,8 @@ interface Props {
   onLoadStart?: () => void;
   onLoadEnd?: () => void;
   onError?: () => void;
+  /** Web implementation ignores WebView messages (iframe bridge not available). */
+  onWebMessage?: (msg: { type: string; detail?: string | null }) => void;
   style?: object;
 }
 

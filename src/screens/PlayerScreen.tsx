@@ -133,6 +133,11 @@ const PlayerScreen = ({ route, navigation }: any) => {
   const seekFeedbackOpacity = useRef(new Animated.Value(0)).current;
   const seekFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Blank-page / no-video safety timeout — fires handleServerError if the
+  // WebView loads but no <video> element is detected within BLANK_TIMEOUT_MS.
+  const blankTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const BLANK_TIMEOUT_MS = 20_000;
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -154,6 +159,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
 
     loadSavedPosition();
     scheduleHideControls();
+    startBlankTimeout();
     saveIntervalRef.current = setInterval(saveProgress, SAVE_INTERVAL_MS);
 
     const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -186,6 +192,17 @@ const PlayerScreen = ({ route, navigation }: any) => {
     if (saveIntervalRef.current) clearInterval(saveIntervalRef.current);
     if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
     if (seekFeedbackTimer.current) clearTimeout(seekFeedbackTimer.current);
+    if (blankTimeoutRef.current) clearTimeout(blankTimeoutRef.current);
+  };
+
+  // Start (or restart) the blank-page safety timer.
+  // Cancelled when VIDEO_OK arrives; fires handleServerError otherwise.
+  const startBlankTimeout = () => {
+    if (blankTimeoutRef.current) clearTimeout(blankTimeoutRef.current);
+    blankTimeoutRef.current = setTimeout(() => {
+      blankTimeoutRef.current = null;
+      handleServerError();
+    }, BLANK_TIMEOUT_MS);
   };
 
   // ── Progress ──────────────────────────────────────────────────────────────
@@ -305,6 +322,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
     setIsLoading(true);
     setHasError(false);
     showControls();
+    startBlankTimeout();
   };
 
   const handleServerError = () => {
@@ -324,6 +342,21 @@ const PlayerScreen = ({ route, navigation }: any) => {
       setIsLoading(false);
     }
   };
+
+  // ── WebView message handler ───────────────────────────────────────────────
+  // Receives signals from the injected JS content detector in StreamEmbed.
+  const handleWebMessage = useCallback((msg: { type: string }) => {
+    if (msg.type === 'VIDEO_OK') {
+      // A <video> element appeared — video is playing, cancel the fallback timer.
+      if (blankTimeoutRef.current) {
+        clearTimeout(blankTimeoutRef.current);
+        blankTimeoutRef.current = null;
+      }
+    } else if (msg.type === 'BLANK_PAGE') {
+      // Injected JS detected no video/iframe after 8 s — auto-switch server.
+      handleServerError();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExit = async () => {
     await saveProgress();
@@ -360,6 +393,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
         onLoadStart={() => setIsLoading(true)}
         onLoadEnd={() => setIsLoading(false)}
         onError={handleServerError}
+        onWebMessage={handleWebMessage}
       />
 
       {/* ── Full-screen gesture overlay ───────────────────────────────────── */}
