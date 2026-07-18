@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
@@ -97,24 +98,27 @@ const actorProfileScreen = (
 );
 
 // ── Social / shared screens ───────────────────────────────────────────────
-const SocialScreens = () => {
-  const { t } = useTranslation();
-  return (
-    <>
-      <Stack.Screen name="PublicProfile" component={PublicProfileScreen as AnyScreen} options={{ title: t('profile') }} />
-      <Stack.Screen name="FollowersScreen" component={GatedFollowersScreen} options={{ title: t('nav_followers') }} />
-      <Stack.Screen name="FollowingScreen" component={GatedFollowingScreen} options={{ title: t('nav_following') }} />
-      <Stack.Screen name="NotificationsScreen" component={GatedNotificationsScreen} options={{ title: t('nav_activity') }} />
-      <Stack.Screen name="WatchParty" component={GatedWatchPartyScreen} options={{ title: t('nav_watch_party'), headerShown: false }} />
-      <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: t('nav_movies') }} />
-      <Stack.Screen name="Collection" component={CollectionScreen as AnyScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="SeriesCollection" component={SeriesCollectionScreen as AnyScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
-    </>
-  );
-};
+// NOTE: This is a plain function, NOT a React component.
+// React Navigation's native stack renderer (Android/iOS) only accepts
+// Stack.Screen elements as direct children of Stack.Navigator — it cannot
+// unwrap a custom component and crashes at runtime on Android.
+// Calling makeSocialScreens(t) returns the Screen elements inline so the
+// native renderer sees them directly.
+const makeSocialScreens = (t: TFunction) => (
+  <>
+    <Stack.Screen name="PublicProfile" component={PublicProfileScreen as AnyScreen} options={{ title: t('profile') }} />
+    <Stack.Screen name="FollowersScreen" component={GatedFollowersScreen} options={{ title: t('nav_followers') }} />
+    <Stack.Screen name="FollowingScreen" component={GatedFollowingScreen} options={{ title: t('nav_following') }} />
+    <Stack.Screen name="NotificationsScreen" component={GatedNotificationsScreen} options={{ title: t('nav_activity') }} />
+    <Stack.Screen name="WatchParty" component={GatedWatchPartyScreen} options={{ title: t('nav_watch_party'), headerShown: false }} />
+    <Stack.Screen name="MovieList" component={MovieListScreen as AnyScreen} options={{ title: t('nav_movies') }} />
+    <Stack.Screen name="Collection" component={CollectionScreen as AnyScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="SeriesCollection" component={SeriesCollectionScreen as AnyScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
+    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
+  </>
+);
 
 // ── Main stacks ────────────────────────────────────────────────────────────
 const HomeStack = () => {
@@ -125,7 +129,7 @@ const HomeStack = () => {
       <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details'), headerShown: true }} />
       {playerScreen}
       {actorProfileScreen}
-      <SocialScreens />
+      {makeSocialScreens(t)}
     </Stack.Navigator>
   );
 };
@@ -138,7 +142,7 @@ const SearchStack = () => {
       <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details') }} />
       {playerScreen}
       {actorProfileScreen}
-      <SocialScreens />
+      {makeSocialScreens(t)}
     </Stack.Navigator>
   );
 };
@@ -151,7 +155,7 @@ const DownloadsStack = () => {
       <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details') }} />
       {playerScreen}
       {actorProfileScreen}
-      <SocialScreens />
+      {makeSocialScreens(t)}
     </Stack.Navigator>
   );
 };
@@ -167,7 +171,7 @@ const ProfileStack = () => {
       <Stack.Screen name="MovieDetails" component={MovieDetailsScreen} options={{ title: t('nav_details') }} />
       {playerScreen}
       {actorProfileScreen}
-      <SocialScreens />
+      {makeSocialScreens(t)}
       <Stack.Screen name="FamilyModeSettings" component={FamilyModeSettingsScreen} options={{ title: t('nav_family_mode') }} />
       <Stack.Screen name="FamilyModePin" component={FamilyModePinScreen} options={{ headerShown: false, animation: 'slide_from_bottom' }} />
     </Stack.Navigator>
