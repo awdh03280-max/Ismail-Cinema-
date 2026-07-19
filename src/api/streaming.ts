@@ -1,5 +1,8 @@
 // Streaming API — free embeddable sources keyed by TMDB ID.
-// Servers are tried in order; failed ones are tracked so the player skips them.
+// Last verified: 2026-07.
+// Servers tried and found DEAD (DNS gone): vidsrc.xyz, embed.su, autoembed.cc,
+// vidsrc.icu, moviesapi.club.  SuperEmbed (superembed.stream) returns 404 on
+// all embed URL patterns.  Do not re-add those without re-verifying first.
 
 export interface StreamingServer {
   id: string;
@@ -22,34 +25,20 @@ export const QUALITIES: Quality[] = ['auto', '1080p', '720p', '480p', '360p'];
 
 export const SERVERS: StreamingServer[] = [
   {
-    id: 'vidsrc_xyz',
+    // vidsrc.me — verified 2026-07, shows movie thumbnail + play button
+    id: 'vidsrc_me',
     name: 'VidSrc',
     getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
-      const type = contentType === 'tv' ? 'tv' : 'movie';
-      let url = `https://vidsrc.xyz/embed/${type}/${id}`;
       if (contentType === 'tv' && season != null && episode != null) {
-        url += `/${season}/${episode}`;
+        return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
       }
-      return url;
+      return `https://vidsrc.me/embed/movie?tmdb=${id}`;
     },
     supportsQuality: false,
     supportsSubtitles: false,
   },
   {
-    id: 'embed_su',
-    name: 'EmbedSu',
-    getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
-      const type = contentType === 'tv' ? 'tv' : 'movie';
-      let url = `https://embed.su/embed/${type}/${id}`;
-      if (contentType === 'tv' && season != null && episode != null) {
-        url += `/${season}/${episode}`;
-      }
-      return url;
-    },
-    supportsQuality: false,
-    supportsSubtitles: false,
-  },
-  {
+    // multiembed.mov — verified 2026-07, shows movie poster + play button
     id: 'multiembed',
     name: 'MultiEmbed',
     getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
@@ -66,14 +55,32 @@ export const SERVERS: StreamingServer[] = [
     supportsSubtitles: false,
   },
   {
-    id: 'superembed',
-    name: 'SuperEmbed',
+    // embed.smashystream.com — verified 2026-07, active multi-source player
+    // (shows "Preparing multi-source scan" loading screen, then plays video)
+    id: 'smashystream',
+    name: 'SmashyStream',
     getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
-      let url = `https://superembed.stream/embed?tmdb=${id}`;
       if (contentType === 'tv' && season != null && episode != null) {
-        url += `&season=${season}&episode=${episode}`;
+        return `https://embed.smashystream.com/playere.php?tmdb=${id}&type=tv&season=${season}&episode=${episode}`;
       }
-      return url;
+      return `https://embed.smashystream.com/playere.php?tmdb=${id}`;
+    },
+    supportsQuality: false,
+    supportsSubtitles: false,
+  },
+  {
+    // www.2embed.cc — verified 2026-07, recognised The Dark Knight (TMDB 155)
+    id: 'twoembed_cc',
+    name: '2Embed',
+    getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
+      if (contentType === 'tv') {
+        let url = `https://www.2embed.cc/embedtv/${id}`;
+        if (season != null && episode != null) {
+          url += `&s=${season}&e=${episode}`;
+        }
+        return url;
+      }
+      return `https://www.2embed.cc/embed/${id}`;
     },
     supportsQuality: false,
     supportsSubtitles: false,
