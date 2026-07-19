@@ -480,25 +480,29 @@ const RootNavigator = () => {
 
   const showSplash = !splashComplete || isLoading;
 
+  // Each screen uses its own conditional so React Navigation's child traversal
+  // never encounters a Fragment wrapper — React.Children does not recurse into
+  // fragments, so wrapping multiple screens in <> is not safe with native-stack.
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-      {showSplash ? (
+      {showSplash && (
         <Stack.Screen name="Splash">
           {() => <SplashScreen onComplete={handleSplashComplete} />}
         </Stack.Screen>
-      ) : (
-        <>
-          <Stack.Screen name="MainApp" component={BottomTabNavigator} />
-          <Stack.Screen
-            name="Player"
-            component={PlayerScreen}
-            options={{
-              headerShown: false,
-              animation: 'fade',
-              presentation: 'fullScreenModal',
-            }}
-          />
-        </>
+      )}
+      {!showSplash && (
+        <Stack.Screen name="MainApp" component={BottomTabNavigator} />
+      )}
+      {!showSplash && (
+        <Stack.Screen
+          name="Player"
+          component={PlayerScreen}
+          options={{
+            headerShown: false,
+            animation: 'fade',
+            presentation: 'fullScreenModal',
+          }}
+        />
       )}
     </Stack.Navigator>
   );

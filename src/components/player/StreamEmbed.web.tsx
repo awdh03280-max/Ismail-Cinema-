@@ -1,23 +1,20 @@
 /**
- * StreamEmbed — web platform implementation.
- * Uses a standard <iframe> since react-native-webview is native-only.
+ * StreamEmbed — web platform.
+ * Uses a standard <iframe>. onHttpError is not available for cross-origin
+ * iframes on the web, so only onError (iframe onerror) is surfaced.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import type { StreamEmbedProps } from './StreamEmbed.native';
 
-interface Props {
-  uri: string;
-  onLoadStart?: () => void;
-  onLoadEnd?: () => void;
-  onError?: () => void;
-  /** Web implementation ignores WebView messages (iframe bridge not available). */
-  onWebMessage?: (msg: { type: string; detail?: string | null }) => void;
-  style?: object;
-}
-
-const StreamEmbed: React.FC<Props> = ({ uri, onLoadStart, onLoadEnd, onError, style }) => {
-  // onLoadStart equivalent: fire synchronously before iframe loads
-  React.useEffect(() => {
+const StreamEmbed: React.FC<StreamEmbedProps> = ({
+  uri,
+  onLoadStart,
+  onLoadEnd,
+  onError,
+  style,
+}) => {
+  useEffect(() => {
     onLoadStart?.();
   }, [uri]);
 
@@ -26,12 +23,7 @@ const StreamEmbed: React.FC<Props> = ({ uri, onLoadStart, onLoadEnd, onError, st
       <iframe
         key={uri}
         src={uri}
-        style={{
-          width: '100%',
-          height: '100%',
-          border: 'none',
-          backgroundColor: '#000',
-        }}
+        style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#000' }}
         allowFullScreen
         allow="autoplay; fullscreen; encrypted-media"
         onLoad={onLoadEnd}
@@ -44,10 +36,7 @@ const StreamEmbed: React.FC<Props> = ({ uri, onLoadStart, onLoadEnd, onError, st
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
+  container: { flex: 1, backgroundColor: '#000' },
 });
 
 export default StreamEmbed;

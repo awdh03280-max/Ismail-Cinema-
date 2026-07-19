@@ -1,10 +1,9 @@
-// Streaming API — free embeddable sources keyed by TMDB movie ID.
-// Sources are tried in order; if one fails the player falls back automatically.
+// Streaming API — free embeddable sources keyed by TMDB ID.
+// Servers are tried in order; failed ones are tracked so the player skips them.
 
 export interface StreamingServer {
   id: string;
   name: string;
-  /** subtitle is a BCP-47 language code, e.g. 'en', 'ar', or 'off' */
   getUrl: (
     tmdbId: string,
     quality?: Quality,
@@ -23,10 +22,9 @@ export const QUALITIES: Quality[] = ['auto', '1080p', '720p', '480p', '360p'];
 
 export const SERVERS: StreamingServer[] = [
   {
-    // vidsrc.xyz — maintained successor to vidsrc.to (active as of 2025-2026)
     id: 'vidsrc_xyz',
     name: 'VidSrc',
-    getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
+    getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
       const type = contentType === 'tv' ? 'tv' : 'movie';
       let url = `https://vidsrc.xyz/embed/${type}/${id}`;
       if (contentType === 'tv' && season != null && episode != null) {
@@ -38,10 +36,9 @@ export const SERVERS: StreamingServer[] = [
     supportsSubtitles: false,
   },
   {
-    // embed.su — formerly vidsrc.pro (rebranded, active as of 2025-2026)
     id: 'embed_su',
     name: 'EmbedSu',
-    getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
+    getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
       const type = contentType === 'tv' ? 'tv' : 'movie';
       let url = `https://embed.su/embed/${type}/${id}`;
       if (contentType === 'tv' && season != null && episode != null) {
@@ -53,23 +50,9 @@ export const SERVERS: StreamingServer[] = [
     supportsSubtitles: false,
   },
   {
-    id: 'autoembed',
-    name: 'AutoEmbed',
-    getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
-      const type = contentType === 'tv' ? 'tv' : 'movie';
-      let url = `https://autoembed.cc/embed/${type}/${id}`;
-      if (contentType === 'tv' && season != null && episode != null) {
-        url += `/${season}/${episode}`;
-      }
-      return url;
-    },
-    supportsQuality: false,
-    supportsSubtitles: false,
-  },
-  {
     id: 'multiembed',
     name: 'MultiEmbed',
-    getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
+    getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
       let url = `https://multiembed.mov/?video_id=${id}&tmdb=1`;
       if (contentType === 'tv') {
         url += '&tv=1';
@@ -83,17 +66,14 @@ export const SERVERS: StreamingServer[] = [
     supportsSubtitles: false,
   },
   {
-    id: 'twoembed',
-    name: '2Embed',
-    getUrl: (id, _quality, _subtitle, contentType = 'movie', season, episode) => {
-      if (contentType === 'tv') {
-        let url = `https://www.2embed.cc/embedtv/${id}`;
-        if (season != null && episode != null) {
-          url += `&s=${season}&e=${episode}`;
-        }
-        return url;
+    id: 'superembed',
+    name: 'SuperEmbed',
+    getUrl: (id, _q, _s, contentType = 'movie', season, episode) => {
+      let url = `https://superembed.stream/embed?tmdb=${id}`;
+      if (contentType === 'tv' && season != null && episode != null) {
+        url += `&season=${season}&episode=${episode}`;
       }
-      return `https://www.2embed.cc/embed/${id}`;
+      return url;
     },
     supportsQuality: false,
     supportsSubtitles: false,
@@ -105,12 +85,7 @@ export const getDefaultServer = (): StreamingServer => SERVERS[0];
 export const getServerById = (id: string): StreamingServer =>
   SERVERS.find((s) => s.id === id) ?? SERVERS[0];
 
-export const getNextServer = (currentId: string): StreamingServer => {
-  const idx = SERVERS.findIndex((s) => s.id === currentId);
-  return SERVERS[(idx + 1) % SERVERS.length];
-};
-
-// Subtitle language options — served by the streaming player when supported.
+// Subtitle language options
 export interface SubtitleLanguage {
   code: string;
   label: string;

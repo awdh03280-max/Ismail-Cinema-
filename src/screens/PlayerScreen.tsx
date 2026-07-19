@@ -1,28 +1,47 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { ND } from '../utils/animation';
+/**
+ * PlayerScreen — full-screen streaming player.
+ *
+ * Server fallback strategy (no injected JS detection):
+ *   1. Each server gets LOAD_TIMEOUT_MS (10 s) to finish loading its page.
+ *   2. onError / onHttpError (≥ 400) triggers an immediate switch.
+ *   3. onLoadEnd cancels the timeout — the page loaded, assume it may work.
+ *   4. If the timeout fires before onLoadEnd, handleServerError() switches.
+ *   5. Once all servers are exhausted, an error screen with a Retry button
+ *      resets the failed-server set and starts over from the first server.
+ *
+ * Stale-closure safety:
+ *   - server and failedServers are mirrored in refs (serverRef, failedServersRef)
+ *     so timer callbacks always read the current value, not a stale snapshot.
+ *   - handleServerErrorRef is kept current by a no-dep-array useEffect so
+ *     the 10 s timeout always calls the latest version of handleServerError.
+ */
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  StatusBar,
   Animated,
   ActivityIndicator,
   BackHandler,
   Dimensions,
   Platform,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as ScreenOrientation from 'expo-screen-orientation';
+
 import StreamEmbed from '../components/player/StreamEmbed';
 import {
   SERVERS,
   StreamingServer,
   Quality,
   SubtitleLanguage,
-  getDefaultServer,
 } from '../api/streaming';
+import ServerSelector from '../components/player/ServerSelector';
+import QualitySelector from '../components/player/QualitySelector';
+import SubtitleSelector from '../components/player/SubtitleSelector';
 import {
   addToContinueWatching,
   updateWatchProgress,
@@ -30,25 +49,33 @@ import {
   savePlaybackPosition,
   markEpisodeWatched,
 } from '../storage/storage';
-import ServerSelector from '../components/player/ServerSelector';
-import QualitySelector from '../components/player/QualitySelector';
-import SubtitleSelector from '../components/player/SubtitleSelector';
 import { useAuth } from '../context/AuthContext';
 import { useWatchPartyPlayback } from '../hooks/useWatchPartyPlayback';
 import { useWatchPartyChat } from '../hooks/useWatchPartyChat';
 import PartySyncBar from '../components/watchparty/PartySyncBar';
 import WatchPartyChatFab from '../components/watchparty/WatchPartyChatFab';
+import { ND } from '../utils/animation';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** How long each server has to finish loading before we switch to the next. */
+const LOAD_TIMEOUT_MS = 10_000;
+/** How often to auto-save watch progress. */
+const SAVE_INTERVAL_MS = 30_000;
+/** Auto-hide controls after this many ms of inactivity. */
+const HIDE_CONTROLS_DELAY = 3_000;
+/** Window for detecting a double-tap (ms). */
+const DOUBLE_TAP_DELAY = 300;
+/** Delay before treating a tap as single (not double). */
+const SINGLE_TAP_DELAY = 200;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// How often (ms) to auto-save progress
-const SAVE_INTERVAL_MS = 30_000;
-// Auto-hide controls after this many ms of inactivity
-const HIDE_CONTROLS_DELAY = 3000;
-// Double-tap detection window (ms)
-const DOUBLE_TAP_DELAY = 300;
-// Single-tap delay to distinguish from double-tap (ms)
-const SINGLE_TAP_DELAY = 200;
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface PlayerParams {
   movieId: string;
@@ -65,6 +92,10 @@ interface PlayerParams {
 }
 
 type TapSide = 'left' | 'right' | 'center';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
 
 const PlayerScreen = ({ route, navigation }: any) => {
   const {
@@ -84,7 +115,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  // ── Watch Party ──────────────────────────────────────────────────────────
+  // ── Watch Party ────────────────────────────────────────────────────────────
   const { playback: partyPlayback, setPartyPlayback } = useWatchPartyPlayback(partyId ?? null);
   const {
     messages: partyMessages,
@@ -97,55 +128,114 @@ const PlayerScreen = ({ route, navigation }: any) => {
     currentUid: partyCurrentUid,
   } = useWatchPartyChat(partyId ?? null);
 
-  // Player state
-  const [server, setServer] = useState<StreamingServer>(getDefaultServer());
-  const [quality, setQuality] = useState<Quality>('auto');
-  const [subtitle, setSubtitle] = useState<string>('off');
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [failedServers, setFailedServers] = useState<Set<string>>(new Set());
-  const [autoFallbackMsg, setAutoFallbackMsg] = useState<string>('');
+  // ── Server / fallback state ────────────────────────────────────────────────
 
-  // Debounce flag — prevents onError + onHttpError from both triggering fallback
+  const [server, setServer]           = useState<StreamingServer>(SERVERS[0]);
+  const [failedServers, setFailedServers] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading]     = useState(true);
+  const [hasError, setHasError]       = useState(false);
+  const [autoFallbackMsg, setAutoFallbackMsg] = useState('');
+
+  // Mirrors of server/failedServers for use inside timer callbacks and
+  // useCallback hooks that would otherwise close over stale state.
+  const serverRef       = useRef<StreamingServer>(SERVERS[0]);
+  const failedServersRef = useRef<Set<string>>(new Set());
+
+  // Prevents onError + onHttpError from both triggering a switch for the same
+  // server load attempt.
   const errorHandledRef = useRef(false);
 
-  // Modal visibility
-  const [showServerSelector, setShowServerSelector] = useState(false);
+  // react-native-webview fires onLoadEnd after onError in the same native-event
+  // batch, before React has re-rendered and swapped the WebView key.  We block
+  // onLoadEnd in switchServer and re-enable it when the new WebView's
+  // onLoadStart arrives — that guarantees any stale callback from the previous
+  // server is ignored.
+  const allowLoadEndRef = useRef(true);
+
+  // 10-second load timeout handle.
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Always points to the latest handleServerError so the timeout closure is
+  // never stale (updated after every render by the no-dep-array useEffect).
+  const handleServerErrorRef = useRef<() => void>(() => {});
+
+  // ── Player UI state ────────────────────────────────────────────────────────
+
+  const [quality, setQuality]   = useState<Quality>('auto');
+  const [subtitle, setSubtitle] = useState<string>('off');
+
+  const [showServerSelector, setShowServerSelector]   = useState(false);
   const [showQualitySelector, setShowQualitySelector] = useState(false);
   const [showSubtitleSelector, setShowSubtitleSelector] = useState(false);
 
-  // Controls overlay visibility
   const [controlsVisible, setControlsVisible] = useState(true);
-  const controlsOpacity = useRef(new Animated.Value(1)).current;
+  const controlsOpacity  = useRef(new Animated.Value(1)).current;
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Progress tracking
-  const sessionStartTime = useRef<number>(Date.now());
-  const savedProgress = useRef<number>(initialProgress);
-  const saveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── Progress tracking ──────────────────────────────────────────────────────
 
-  // Double-tap gesture tracking
-  const lastTapRef = useRef<{ side: TapSide; time: number } | null>(null);
+  const sessionStartTime = useRef<number>(Date.now());
+  const savedProgress    = useRef<number>(initialProgress);
+  const saveIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Double-tap gesture ────────────────────────────────────────────────────
+
+  const lastTapRef        = useRef<{ side: TapSide; time: number } | null>(null);
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Seek feedback state
   const [seekFeedback, setSeekFeedback] = useState<TapSide | null>(null);
   const seekFeedbackOpacity = useRef(new Animated.Value(0)).current;
-  const seekFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seekFeedbackTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Blank-page / no-video safety timeout — fires handleServerError if the
-  // WebView loads but no <video> element is detected within BLANK_TIMEOUT_MS.
-  const blankTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const BLANK_TIMEOUT_MS = 20_000;
+  // ── Helpers — keep state + ref in sync ────────────────────────────────────
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  const setServerAndRef = (s: StreamingServer) => {
+    serverRef.current = s;
+    setServer(s);
+  };
+
+  const setFailedAndRef = (s: Set<string>) => {
+    failedServersRef.current = s;
+    setFailedServers(s);
+  };
+
+  // ── Timer helpers ──────────────────────────────────────────────────────────
+
+  const clearLoadTimeout = () => {
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
+  };
+
+  const startLoadTimeout = () => {
+    clearLoadTimeout();
+    loadTimeoutRef.current = setTimeout(() => {
+      // Always call the ref so we get the render-fresh handleServerError.
+      handleServerErrorRef.current();
+    }, LOAD_TIMEOUT_MS);
+  };
+
+  const clearAllTimers = () => {
+    clearLoadTimeout();
+    if (hideControlsTimer.current)  clearTimeout(hideControlsTimer.current);
+    if (saveIntervalRef.current)    clearInterval(saveIntervalRef.current);
+    if (singleTapTimerRef.current)  clearTimeout(singleTapTimerRef.current);
+    if (seekFeedbackTimer.current)  clearTimeout(seekFeedbackTimer.current);
+  };
+
+  // ── Keep handleServerErrorRef current after every render ──────────────────
+  // No dependency array → runs after every render → ref always has the latest.
+  useEffect(() => {
+    handleServerErrorRef.current = handleServerError; // eslint-disable-line react-hooks/exhaustive-deps
+  });
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Lock to landscape on native
     if (Platform.OS !== 'web') {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
     }
-
     StatusBar.setHidden(true, 'fade');
 
     addToContinueWatching({
@@ -159,7 +249,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
 
     loadSavedPosition();
     scheduleHideControls();
-    startBlankTimeout();
+    startLoadTimeout(); // first server timeout
     saveIntervalRef.current = setInterval(saveProgress, SAVE_INTERVAL_MS);
 
     const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -168,70 +258,52 @@ const PlayerScreen = ({ route, navigation }: any) => {
     });
 
     return () => {
-      // Restore portrait on native
       if (Platform.OS !== 'web') {
         ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
       }
       StatusBar.setHidden(false, 'fade');
-      clearTimers();
+      clearAllTimers();
       backSub.remove();
       saveProgress();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (contentType === 'tv' && season != null && episode != null) {
+      markEpisodeWatched(movieId, season, episode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Progress ───────────────────────────────────────────────────────────────
+
   const loadSavedPosition = async () => {
     const pos = await getPlaybackPosition(movieId);
-    if (pos !== null) {
-      savedProgress.current = pos;
-    }
+    if (pos !== null) savedProgress.current = pos;
   };
-
-  const clearTimers = () => {
-    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-    if (saveIntervalRef.current) clearInterval(saveIntervalRef.current);
-    if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
-    if (seekFeedbackTimer.current) clearTimeout(seekFeedbackTimer.current);
-    if (blankTimeoutRef.current) clearTimeout(blankTimeoutRef.current);
-  };
-
-  // Start (or restart) the blank-page safety timer.
-  // Cancelled when VIDEO_OK arrives; fires handleServerError otherwise.
-  const startBlankTimeout = () => {
-    if (blankTimeoutRef.current) clearTimeout(blankTimeoutRef.current);
-    blankTimeoutRef.current = setTimeout(() => {
-      blankTimeoutRef.current = null;
-      handleServerError();
-    }, BLANK_TIMEOUT_MS);
-  };
-
-  // ── Progress ──────────────────────────────────────────────────────────────
 
   const computeProgress = (): number => {
+    const elapsedMin = (Date.now() - sessionStartTime.current) / 60_000;
     if (runtimeMinutes > 0) {
-      const elapsedMinutes = (Date.now() - sessionStartTime.current) / 60_000;
-      const computed = savedProgress.current + (elapsedMinutes / runtimeMinutes) * 100;
-      return Math.min(Math.round(computed), 99);
+      return Math.min(Math.round(savedProgress.current + (elapsedMin / runtimeMinutes) * 100), 99);
     }
-    const elapsedMinutes = (Date.now() - sessionStartTime.current) / 60_000;
-    return Math.min(Math.round(savedProgress.current + elapsedMinutes), 99);
+    return Math.min(Math.round(savedProgress.current + elapsedMin), 99);
   };
 
   const saveProgress = useCallback(async () => {
     const progress = computeProgress();
     await updateWatchProgress(movieId, progress, { title, poster });
     await savePlaybackPosition(movieId, progress);
-  }, [movieId, title, poster]);
+  }, [movieId, title, poster]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Controls overlay ──────────────────────────────────────────────────────
+  // ── Controls overlay ───────────────────────────────────────────────────────
 
   const scheduleHideControls = () => {
     if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
     hideControlsTimer.current = setTimeout(() => {
       Animated.timing(controlsOpacity, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: ND,
+        toValue: 0, duration: 400, useNativeDriver: ND,
       }).start(() => setControlsVisible(false));
     }, HIDE_CONTROLS_DELAY);
   };
@@ -239,27 +311,23 @@ const PlayerScreen = ({ route, navigation }: any) => {
   const showControls = useCallback(() => {
     setControlsVisible(true);
     Animated.timing(controlsOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: ND,
+      toValue: 1, duration: 200, useNativeDriver: ND,
     }).start();
     scheduleHideControls();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleControls = useCallback(() => {
     if (controlsVisible) {
       if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
       Animated.timing(controlsOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: ND,
+        toValue: 0, duration: 200, useNativeDriver: ND,
       }).start(() => setControlsVisible(false));
     } else {
       showControls();
     }
   }, [controlsVisible, showControls]);
 
-  // ── Seek feedback (visual only — WebView embed can't be seeked externally) ─
+  // ── Seek feedback ──────────────────────────────────────────────────────────
 
   const showSeekFeedback = useCallback((side: 'left' | 'right') => {
     if (seekFeedbackTimer.current) clearTimeout(seekFeedbackTimer.current);
@@ -267,14 +335,12 @@ const PlayerScreen = ({ route, navigation }: any) => {
     seekFeedbackOpacity.setValue(1);
     seekFeedbackTimer.current = setTimeout(() => {
       Animated.timing(seekFeedbackOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: ND,
+        toValue: 0, duration: 300, useNativeDriver: ND,
       }).start(() => setSeekFeedback(null));
     }, 700);
   }, [seekFeedbackOpacity]);
 
-  // ── Gesture handling (tap zones) ──────────────────────────────────────────
+  // ── Tap gesture ────────────────────────────────────────────────────────────
 
   const handlePress = useCallback((event: any) => {
     const x = event?.nativeEvent?.locationX ?? SCREEN_WIDTH / 2;
@@ -283,16 +349,10 @@ const PlayerScreen = ({ route, navigation }: any) => {
     else if (x > SCREEN_WIDTH * 0.7) side = 'right';
     else side = 'center';
 
-    const now = Date.now();
+    const now  = Date.now();
     const last = lastTapRef.current;
 
-    if (
-      last &&
-      last.side === side &&
-      side !== 'center' &&
-      now - last.time < DOUBLE_TAP_DELAY
-    ) {
-      // Double-tap on left or right — show seek feedback
+    if (last && last.side === side && side !== 'center' && now - last.time < DOUBLE_TAP_DELAY) {
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
@@ -301,7 +361,6 @@ const PlayerScreen = ({ route, navigation }: any) => {
       showSeekFeedback(side);
       showControls();
     } else {
-      // Potential first tap — store and wait to see if a second comes
       lastTapRef.current = { side, time: now };
       if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
       singleTapTimerRef.current = setTimeout(() => {
@@ -312,146 +371,153 @@ const PlayerScreen = ({ route, navigation }: any) => {
     }
   }, [showSeekFeedback, showControls, toggleControls]);
 
-  // ── Server management ─────────────────────────────────────────────────────
+  // ── Server management ──────────────────────────────────────────────────────
 
+  /**
+   * Switch to a specific server.
+   * Resets the error-handled guard and starts a fresh 10 s load timeout.
+   */
   const switchServer = (next: StreamingServer) => {
-    savedProgress.current = computeProgress();
+    allowLoadEndRef.current  = false; // block any stale onLoadEnd from the previous server
+    errorHandledRef.current  = false;
+    savedProgress.current    = computeProgress();
     sessionStartTime.current = Date.now();
-    errorHandledRef.current = false;
-    setServer(next);
+    setServerAndRef(next);
     setIsLoading(true);
     setHasError(false);
+    startLoadTimeout();
     showControls();
-    startBlankTimeout();
   };
 
+  /**
+   * Called when the current server is considered failed (timeout, error, HTTP
+   * error).  Reads exclusively from refs so it is safe to call from timer
+   * callbacks that captured a stale closure.
+   *
+   * Finds the next server that has not been tried yet in this session.
+   * If none remain, shows the all-failed error UI.
+   */
   const handleServerError = () => {
     if (errorHandledRef.current) return;
     errorHandledRef.current = true;
+    clearLoadTimeout();
 
-    const newFailed = new Set(failedServers).add(server.id);
-    setFailedServers(newFailed);
+    const currentId = serverRef.current.id;
+    const newFailed = new Set(failedServersRef.current).add(currentId);
+    setFailedAndRef(newFailed);
 
-    const available = SERVERS.find((s) => !newFailed.has(s.id));
-    if (available) {
-      setAutoFallbackMsg(`"${server.name}" unavailable — switching to ${available.name}`);
-      switchServer(available);
-      setTimeout(() => setAutoFallbackMsg(''), 3500);
+    const next = SERVERS.find((s) => !newFailed.has(s.id));
+    if (next) {
+      setAutoFallbackMsg(`"${serverRef.current.name}" failed — trying ${next.name}…`);
+      setTimeout(() => setAutoFallbackMsg(''), 3_500);
+      switchServer(next);
     } else {
+      // Every server has failed.
       setHasError(true);
       setIsLoading(false);
     }
   };
-
-  // ── WebView message handler ───────────────────────────────────────────────
-  // Receives signals from the injected JS content detector in StreamEmbed.
-  const handleWebMessage = useCallback((msg: { type: string }) => {
-    if (msg.type === 'VIDEO_OK') {
-      // A <video> element appeared — video is playing, cancel the fallback timer.
-      if (blankTimeoutRef.current) {
-        clearTimeout(blankTimeoutRef.current);
-        blankTimeoutRef.current = null;
-      }
-    } else if (msg.type === 'BLANK_PAGE') {
-      // Injected JS detected no video/iframe after 8 s — auto-switch server.
-      handleServerError();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExit = async () => {
     await saveProgress();
     navigation.goBack();
   };
 
-  // ── Mark episode watched ──────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (contentType === 'tv' && season != null && episode != null) {
-      markEpisodeWatched(movieId, season, episode);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Derived ───────────────────────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────────
 
   const streamUrl = server.getUrl(movieId, quality, subtitle, contentType, season, episode);
+
   const displayTitle =
     contentType === 'tv' && season != null && episode != null && episodeTitle
       ? `S${season}:E${episode} · ${episodeTitle}`
       : title;
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* ── Stream embed ─────────────────────────────────────────────────── */}
+      {/* ── Stream embed ──────────────────────────────────────────────────── */}
       <StreamEmbed
         uri={streamUrl}
-        style={styles.webView}
-        onLoadStart={() => setIsLoading(true)}
-        onLoadEnd={() => setIsLoading(false)}
+        style={styles.embed}
+        onLoadStart={() => {
+          // Re-enable onLoadEnd: this callback comes from the NEW WebView, so
+          // any stale onLoadEnd from the previous server is now in the past.
+          allowLoadEndRef.current = true;
+          setIsLoading(true);
+          setHasError(false);
+        }}
+        onLoadEnd={() => {
+          // Guarded by allowLoadEndRef: switchServer() sets it to false so that
+          // the stale onLoadEnd react-native-webview emits after onError (in the
+          // same native batch, before the re-render) cannot clear the NEW
+          // server's timeout.  allowLoadEndRef is re-enabled by the new
+          // WebView's onLoadStart above.
+          if (!allowLoadEndRef.current) return;
+          clearLoadTimeout();
+          setIsLoading(false);
+        }}
         onError={handleServerError}
-        onWebMessage={handleWebMessage}
+        onHttpError={(statusCode) => {
+          if (statusCode >= 400) handleServerError();
+        }}
       />
 
-      {/* ── Full-screen gesture overlay ───────────────────────────────────── */}
+      {/* ── Full-screen tap catcher ────────────────────────────────────────── */}
       <Pressable style={StyleSheet.absoluteFill} onPress={handlePress}>
-        {/* Transparent — touches also pass to WebView for its own controls */}
         <View style={StyleSheet.absoluteFill} pointerEvents="none" />
       </Pressable>
 
-      {/* ── Seek feedback (double-tap) ────────────────────────────────────── */}
+      {/* ── Seek feedback ─────────────────────────────────────────────────── */}
       {seekFeedback != null && (
         <Animated.View
           style={[
             styles.seekFeedback,
-            seekFeedback === 'left' ? styles.seekFeedbackLeft : styles.seekFeedbackRight,
+            seekFeedback === 'left' ? styles.seekLeft : styles.seekRight,
             { opacity: seekFeedbackOpacity },
           ]}
           pointerEvents="none"
         >
-          <Ionicons
-            name={seekFeedback === 'left' ? 'play-back' : 'play-forward'}
-            size={28}
-            color="#fff"
-          />
-          <Text style={styles.seekFeedbackText}>{t('seek_seconds')}</Text>
+          <Ionicons name={seekFeedback === 'left' ? 'play-back' : 'play-forward'} size={28} color="#fff" />
+          <Text style={styles.seekText}>{t('seek_seconds')}</Text>
         </Animated.View>
       )}
 
-      {/* ── Loading overlay ───────────────────────────────────────────────── */}
-      {isLoading && (
-        <View style={styles.loaderContainer} pointerEvents="none">
+      {/* ── Loading overlay ────────────────────────────────────────────────── */}
+      {isLoading && !hasError && (
+        <View style={styles.loaderOverlay} pointerEvents="none">
           <ActivityIndicator size="large" color="#e50914" />
           <Text style={styles.loaderText}>{t('player_loading')}</Text>
+          <Text style={styles.loaderServer}>{server.name}</Text>
         </View>
       )}
 
-      {/* ── All-servers failed error ──────────────────────────────────────── */}
+      {/* ── All-servers-failed error ───────────────────────────────────────── */}
       {hasError && (
-        <View style={styles.errorContainer}>
-          <Ionicons name="warning" size={48} color="#e50914" />
+        <View style={styles.errorOverlay}>
+          <Ionicons name="warning-outline" size={52} color="#e50914" />
           <Text style={styles.errorTitle}>{t('player_error_title')}</Text>
           <Text style={styles.errorMessage}>{t('player_error_message')}</Text>
           <Pressable
             style={styles.retryBtn}
             onPress={() => {
-              setFailedServers(new Set());
+              // Reset everything and start from the first server again.
+              setFailedAndRef(new Set());
               switchServer(SERVERS[0]);
             }}
           >
             <Ionicons name="refresh" size={18} color="#fff" />
             <Text style={styles.retryBtnText}>{t('player_retry')}</Text>
           </Pressable>
-          <Pressable style={styles.exitFromErrorBtn} onPress={handleExit}>
-            <Text style={styles.exitFromErrorText}>{t('player_go_back')}</Text>
+          <Pressable style={styles.goBackBtn} onPress={handleExit}>
+            <Text style={styles.goBackText}>{t('player_go_back')}</Text>
           </Pressable>
         </View>
       )}
 
-      {/* ── Auto-fallback toast ───────────────────────────────────────────── */}
+      {/* ── Auto-fallback toast ────────────────────────────────────────────── */}
       {!!autoFallbackMsg && (
         <View style={styles.toast} pointerEvents="none">
           <Ionicons name="swap-horizontal" size={14} color="#fff" />
@@ -459,38 +525,30 @@ const PlayerScreen = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* ── Controls overlay ─────────────────────────────────────────────── */}
+      {/* ── Controls overlay ──────────────────────────────────────────────── */}
       {controlsVisible && (
-        <Animated.View
-          style={[styles.controls, { opacity: controlsOpacity }]}
-          pointerEvents="box-none"
-        >
+        <Animated.View style={[styles.controls, { opacity: controlsOpacity }]} pointerEvents="box-none">
+
           {/* Top bar */}
           <View style={styles.topBar}>
             <Pressable onPress={handleExit} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={28} color="#fff" />
             </Pressable>
 
-            <View style={styles.titleContainer} pointerEvents="none">
+            <View style={styles.titleBlock} pointerEvents="none">
               <Text style={styles.movieTitle} numberOfLines={1}>{displayTitle}</Text>
-              <View style={styles.serverTag}>
+              {/* Current server name — always visible in the top bar */}
+              <View style={styles.serverBadge}>
                 <Ionicons name="wifi" size={11} color="#e50914" />
-                <Text style={styles.serverTagText}>{server.name}</Text>
+                <Text style={styles.serverBadgeText}>{server.name}</Text>
               </View>
             </View>
 
             <View style={styles.topActions}>
-              <Pressable
-                style={styles.topBtn}
-                onPress={() => { showControls(); setShowSubtitleSelector(true); }}
-              >
+              <Pressable style={styles.topBtn} onPress={() => { showControls(); setShowSubtitleSelector(true); }}>
                 <Ionicons name="text" size={20} color="#fff" />
               </Pressable>
-
-              <Pressable
-                style={styles.topBtn}
-                onPress={() => { showControls(); setShowQualitySelector(true); }}
-              >
+              <Pressable style={styles.topBtn} onPress={() => { showControls(); setShowQualitySelector(true); }}>
                 <Ionicons name="settings-sharp" size={20} color="#fff" />
               </Pressable>
             </View>
@@ -516,10 +574,9 @@ const PlayerScreen = ({ route, navigation }: any) => {
               >
                 <Text style={styles.qualityChipText}>{quality.toUpperCase()}</Text>
               </Pressable>
-
               {subtitle !== 'off' && (
-                <View style={styles.subtitleChip}>
-                  <Text style={styles.subtitleChipText}>CC</Text>
+                <View style={styles.ccChip}>
+                  <Text style={styles.ccChipText}>CC</Text>
                 </View>
               )}
             </View>
@@ -527,15 +584,13 @@ const PlayerScreen = ({ route, navigation }: any) => {
         </Animated.View>
       )}
 
-      {/* ── Watch Party sync bar + chat ───────────────────────────────────── */}
+      {/* ── Watch Party ───────────────────────────────────────────────────── */}
       {!!partyId && (
         <>
           <PartySyncBar
             isHost={partyIsHost}
             playback={partyPlayback}
-            onSetPlayback={(patch) => {
-              if (user) setPartyPlayback(patch, user.uid);
-            }}
+            onSetPlayback={(patch) => { if (user) setPartyPlayback(patch, user.uid); }}
           />
           <WatchPartyChatFab
             messages={partyMessages}
@@ -551,7 +606,7 @@ const PlayerScreen = ({ route, navigation }: any) => {
         </>
       )}
 
-      {/* ── Modals ───────────────────────────────────────────────────────── */}
+      {/* ── Modals ────────────────────────────────────────────────────────── */}
       <ServerSelector
         visible={showServerSelector}
         currentServerId={server.id}
@@ -574,16 +629,22 @@ const PlayerScreen = ({ route, navigation }: any) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
   },
-  webView: {
+  embed: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000',
   },
-  loaderContainer: {
+
+  // ── Loading
+  loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
@@ -594,7 +655,16 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 14,
   },
-  errorContainer: {
+  loaderServer: {
+    color: '#e50914',
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+
+  // ── Error
+  errorOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
@@ -620,7 +690,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#e50914',
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: 8,
     gap: 8,
     marginBottom: 12,
@@ -630,21 +700,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
-  exitFromErrorBtn: {
+  goBackBtn: {
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
-  exitFromErrorText: {
+  goBackText: {
     color: '#aaa',
     fontSize: 14,
   },
+
+  // ── Toast
   toast: {
     position: 'absolute',
     bottom: 90,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.78)',
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -654,6 +726,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
   },
+
+  // ── Controls
   controls: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
@@ -672,7 +746,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  titleContainer: {
+  titleBlock: {
     flex: 1,
     marginHorizontal: 8,
   },
@@ -681,13 +755,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  serverTag: {
+  serverBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginTop: 2,
   },
-  serverTagText: {
+  serverBadgeText: {
     color: '#e50914',
     fontSize: 11,
     fontWeight: '600',
@@ -745,7 +819,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  subtitleChip: {
+  ccChip: {
     backgroundColor: 'rgba(229,9,20,0.3)',
     borderRadius: 6,
     paddingHorizontal: 8,
@@ -753,12 +827,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e50914',
   },
-  subtitleChipText: {
+  ccChipText: {
     color: '#e50914',
     fontSize: 11,
     fontWeight: '700',
   },
-  // Seek feedback overlays
+
+  // ── Seek feedback
   seekFeedback: {
     position: 'absolute',
     top: '50%',
@@ -771,13 +846,9 @@ const styles = StyleSheet.create({
     height: 80,
     gap: 4,
   },
-  seekFeedbackLeft: {
-    left: 40,
-  },
-  seekFeedbackRight: {
-    right: 40,
-  },
-  seekFeedbackText: {
+  seekLeft:  { left: 40 },
+  seekRight: { right: 40 },
+  seekText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
