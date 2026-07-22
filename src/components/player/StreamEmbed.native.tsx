@@ -13,14 +13,27 @@
  * document.querySelector('video') always returns null in the parent frame.
  *
  * Navigation guard (onShouldStartLoadWithRequest):
- *   Intercepts every top-level navigation Android WebView is about to follow.
+ *   IMPORTANT — on Android, the guard is NOT called for the very first load
+ *   (including any server-side 301/302 redirect chain that happens during it).
+ *   It IS called for every subsequent JS-initiated or link-click navigation.
+ *
  *   Non-top-frame requests (subframes / iframes) are always allowed — the
  *   actual video player lives inside cross-origin subframes and must not be
- *   blocked.  At the top level we allow only the initial embed domain; all
- *   other destinations (ad redirects, app-scheme deep links) are blocked and
- *   logged without triggering a server switch.
+ *   blocked.
+ *
+ *   currentHostRef tracks the hostname of the page currently shown in the
+ *   WebView, updated by onLoadStart's nativeEvent.url.  This keeps the guard
+ *   correct even when a server-side redirect has moved the page to a different
+ *   domain from the original uri prop (e.g. vidsrc.me → vidsrcme.ru).
+ *
+ *   At the top level only these navigations are permitted:
+ *     • The original URI (first load / server-switch reload)
+ *     • http/https URLs on the same host as the currently loaded page
+ *     • http/https URLs on the same host as the original uri prop
+ *   Everything else — app-scheme deep links, ad redirects to external domains
+ *   — is blocked silently without raising onError.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import WebViewRN from 'react-native-webview';
 
@@ -45,9 +58,8 @@ true;
 // ---------------------------------------------------------------------------
 // Navigation guard — blocked URL schemes.
 // Any top-level navigation whose scheme appears here is silently dropped.
-// Adding a scheme here prevents the Android WebView from following it,
-// which previously caused onError to fire (triggering a false server switch)
-// or opened an external app.
+// Previously these triggered onError, which incorrectly caused the server-
+// fallback logic to switch to the next server.
 // ---------------------------------------------------------------------------
 const BLOCKED_SCHEMES = new Set([
   'intent',    // Android deep-link wrapper — always an app launch, never a page
@@ -57,8 +69,8 @@ const BLOCKED_SCHEMES = new Set([
   'mailto',    // email client
   'whatsapp',  // WhatsApp
   'tg',        // Telegram
-  'fb',        // Facebook
-  'facebook',  // Facebook (alternate)
+  'fb',        // Facebook (alternate scheme)
+  'facebook',  // Facebook
   'instagram', // Instagram
   'twitter',   // Twitter / X
   'snapchat',  // Snapchat
@@ -71,16 +83,13 @@ const BLOCKED_SCHEMES = new Set([
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Extract the scheme from any URL string, lower-cased. Returns '' on failure. */
+/** Extract the URL scheme, lower-cased.  Returns '' on failure. */
 const getScheme = (url: string): string => {
   const match = url.match(/^([a-zA-Z][a-zA-Z0-9+\-.]*):\/\//);
   return match ? match[1].toLowerCase() : '';
 };
 
-/**
- * Extract the hostname from a URL string.
- * Returns '' if the URL cannot be parsed (e.g. intent:// or malformed strings).
- */
+/** Extract hostname.  Returns '' if the URL cannot be parsed. */
 const getHostname = (url: string): string => {
   try {
     return new URL(url).hostname;
@@ -115,20 +124,31 @@ const StreamEmbed: React.FC<StreamEmbedProps> = ({
   style,
 }) => {
   /**
-   * Navigation guard — called by the Android/iOS WebView before every
-   * top-level or subframe navigation.
+   * currentHostRef — hostname of the page currently shown in the WebView.
    *
-   * Return true  → allow the navigation (WebView loads the URL).
-   * Return false → block the navigation (WebView stays on current page,
-   *                no onError is raised, no server switch occurs).
+   * Initialised to the hostname of the uri prop.  Updated every time
+   * onLoadStart fires, using nativeEvent.url from the WebView event.
+   * This means the ref stays accurate even after a server-side 301/302
+   * redirect moves the page to a different domain (e.g. vidsrc.me →
+   * vidsrcme.ru): onLoadStart fires for the redirected URL, so the ref
+   * is updated before any JS on that page can trigger a navigation.
+   */
+  const currentHostRef = useRef<string>(getHostname(uri));
+
+  /**
+   * Navigation guard — called before every navigation the WebView is about
+   * to follow.  On Android this is NOT called for the first load (including
+   * its server-side redirect chain); on iOS it is called for everything.
+   *
+   * Return true  → allow.
+   * Return false → block silently (no onError, no server switch).
    */
   const onShouldStartLoadWithRequest = useCallback(
     (request: { url: string; isTopFrame: boolean }): boolean => {
       const { url, isTopFrame } = request;
 
-      // ── Subframes (iframes inside the embed) ─────────────────────────────
-      // The actual video player lives in cross-origin subframes.  Blocking
-      // subframe navigations breaks playback.  Always allow.
+      // ── Subframes (cross-origin iframes inside the embed) ────────────────
+      // The actual video player lives inside subframes.  Always allow.
       if (!isTopFrame) {
         return true;
       }
@@ -137,34 +157,43 @@ const StreamEmbed: React.FC<StreamEmbedProps> = ({
       const scheme = getScheme(url);
 
       // 1. Known app-scheme deep links — block unconditionally.
-      //    These used to fire onError (unhandled scheme), which caused the
-      //    server-fallback logic to switch servers incorrectly.
+      //    These previously triggered onError → false server switch.
       if (BLOCKED_SCHEMES.has(scheme)) {
         console.log('[StreamEmbed] BLOCKED app-scheme deep link:', scheme + '://', url.substring(0, 200));
         return false;
       }
 
-      // 2. Any other non-http(s) scheme at the top level is unknown and
-      //    likely an app launch attempt.  Block it.
+      // 2. Any other non-http(s) scheme at the top level is an unknown app
+      //    launch.  Block it.
       if (scheme !== 'http' && scheme !== 'https') {
         console.log('[StreamEmbed] BLOCKED unknown scheme:', scheme, url.substring(0, 200));
         return false;
       }
 
-      // 3. The initial embed URL — always allow.
-      //    This covers the very first load and any reload of the same URL
-      //    triggered by a server switch (key={uri} remounts the WebView).
+      // 3. The original embed URI — always allow (first load / reload).
       if (url === uri) {
         return true;
       }
 
-      // 4. Same embed domain (including subdomains) — allow.
-      //    Embed sites may internally redirect within their own domain
-      //    (e.g. vidsrc.me/embed/... → vidsrc.me/player/...).  These are
-      //    legitimate and must not be blocked.
-      const embedHost = getHostname(uri);
-      const reqHost   = getHostname(url);
+      const reqHost = getHostname(url);
 
+      // 4. Same host as the page currently shown in the WebView — allow.
+      //    Covers legitimate within-domain navigations on the final redirected
+      //    page (e.g. vidsrcme.ru/sbx.html after a vidsrc.me→vidsrcme.ru
+      //    redirect), without letting ad networks hijack the top frame.
+      const currentHost = currentHostRef.current;
+      if (
+        currentHost &&
+        reqHost &&
+        (reqHost === currentHost || reqHost.endsWith('.' + currentHost))
+      ) {
+        return true;
+      }
+
+      // 5. Same host as the original uri prop — allow.
+      //    Belt-and-suspenders: covers the case where currentHostRef has not
+      //    yet been updated (race between onLoadStart and a fast JS redirect).
+      const embedHost = getHostname(uri);
       if (
         embedHost &&
         reqHost &&
@@ -173,15 +202,28 @@ const StreamEmbed: React.FC<StreamEmbedProps> = ({
         return true;
       }
 
-      // 5. All other top-level http/https navigations are ad redirects.
-      //    Streaming embed sites redirect the top-level WebView frame to ad
-      //    networks (e.g. trafficjunky.com, exoclick.com) after the embed
-      //    page loads.  Blocking here keeps the WebView on the embed page.
+      // 6. All other top-level http/https navigations are ad redirects.
+      //    Block them — keep the WebView on the current embed page.
       //    No onError is raised, so no false server switch occurs.
       console.log('[StreamEmbed] BLOCKED top-level ad redirect:', url.substring(0, 200));
       return false;
     },
     [uri],
+  );
+
+  /** Intercept onLoadStart to update currentHostRef with the navigated URL. */
+  const handleLoadStart = useCallback(
+    (event: any) => {
+      const loadingUrl: string | undefined = event?.nativeEvent?.url;
+      if (loadingUrl) {
+        const host = getHostname(loadingUrl);
+        if (host) {
+          currentHostRef.current = host;
+        }
+      }
+      onLoadStart?.();
+    },
+    [onLoadStart],
   );
 
   return (
@@ -197,7 +239,7 @@ const StreamEmbed: React.FC<StreamEmbedProps> = ({
       javaScriptEnabled
       domStorageEnabled
       // ── Load events ───────────────────────────────────────────────────────
-      onLoadStart={onLoadStart}
+      onLoadStart={handleLoadStart}
       onLoadEnd={onLoadEnd}
       onError={() => onError?.()}
       onHttpError={({ nativeEvent }: { nativeEvent: { statusCode: number } }) => {
