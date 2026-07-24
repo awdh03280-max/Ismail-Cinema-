@@ -46,5 +46,8 @@
     "@types/react": "~18.2.0",
     "typescript": "^5.0.0"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "tar": "^7.0.0"
+  }
 }
